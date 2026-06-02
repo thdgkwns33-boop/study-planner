@@ -727,10 +727,27 @@ window.switchCheckTab=function(key){
   document.querySelectorAll('.stab').forEach(el=>{if(el.dataset.key===key)el.classList.add('active');});
   window.renderCheckTable();
 }
+window.deleteSubject=function(key){
+  const sub=getAllSubjects().find(s=>s.key===key);
+  if(!sub)return;
+  if(!confirm('"'+sub.name+'" 과목을 삭제할까요?\n추가한 과목만 삭제 가능합니다.'))return;
+  extraSubjects=extraSubjects.filter(s=>s.key!==key);
+  if(checkData[key])delete checkData[key];
+  if(currentCheckTab===key){
+    const rem=getAllSubjects();
+    currentCheckTab=rem.length?rem[0].key:null;
+  }
+  scheduleSave();renderCheckTabs();window.renderCheckTable();
+}
 function renderCheckTabs(){
   const allSubs=getAllSubjects();
+  const baseKeys=BASE_SUBJECTS.map(s=>s.key);
   if(!currentCheckTab)currentCheckTab=allSubs[0]?.key;
-  document.getElementById('check-tabs').innerHTML=allSubs.map(s=>`<div class="stab ${currentCheckTab===s.key?'active':''}" data-key="${s.key}" onclick="switchCheckTab('${s.key}')">${s.name}</div>`).join('');
+  document.getElementById('check-tabs').innerHTML=allSubs.map(s=>{
+    const isBase=baseKeys.includes(s.key);
+    const delBtn=isBase?'':`<span onclick="event.stopPropagation();deleteSubject('${s.key}')" style="margin-left:4px;opacity:0.7;font-size:14px;cursor:pointer" title="삭제">×</span>`;
+    return`<div class="stab ${currentCheckTab===s.key?'active':''}" data-key="${s.key}" onclick="switchCheckTab('${s.key}')" style="display:inline-flex;align-items:center">${s.name}${delBtn}</div>`;
+  }).join('');
 }
 window.renderCheckTable=function(){
   const allSubs=getAllSubjects(),sd=allSubs.find(s=>s.key===currentCheckTab);
