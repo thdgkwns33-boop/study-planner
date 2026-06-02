@@ -20,6 +20,13 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
+/* 암기 및 화면 잠금 레이어 */
+.lock-screen{position:fixed;inset:0;background:#1a1916;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white}
+.lock-box{background:#2d2c28;padding:32px;border-radius:var(--radius);box-shadow:var(--shadow-md);text-align:center;width:320px}
+.lock-title{font-size:16px;font-weight:700;margin-bottom:16px;letter-spacing:-0.5px}
+.lock-input{width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.2);background:#1a1916;color:white;text-align:center;font-size:18px;font-family:'DM Mono',monospace;outline:none;margin-bottom:12px}
+.lock-input:focus{border-color:var(--accent)}
+
 .app{display:flex;min-height:100vh}
 .sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:28px 0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
 .logo{padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:16px}
@@ -36,7 +43,12 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 .page{display:none}.page.active{display:block}
 .card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:18px 22px;margin-bottom:14px;box-shadow:var(--shadow)}
 .card-title{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:12px;display:flex;align-items:center;gap:6px;letter-spacing:0.3px}
-.dday-banner-wrap{background:linear-gradient(135deg,#1a1916,#2d2c28);border-radius:var(--radius);padding:18px 22px;margin-bottom:14px;display:flex;align-items:center;gap:20px;color:white;box-shadow:var(--shadow-md)}
+/* Next Exam 배너 내부 멀티 리스트 구조 커스텀 */
+.dday-banner-wrap{background:linear-gradient(135deg,#1a1916,#2d2c28);border-radius:var(--radius);padding:18px 22px;margin-bottom:14px;display:flex;flex-direction:column;gap:12px;color:white;box-shadow:var(--shadow-md)}
+.dday-main-row{display:flex;align-items:center;gap:20px}
+.dday-sub-exams{border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;display:flex;flex-wrap:wrap;gap:12px;font-size:11px}
+.dday-sub-item{background:rgba(255,255,255,0.07);padding:3px 10px;border-radius:999px;color:rgba(255,255,255,0.85);display:flex;gap:6px}
+.dday-sub-tag{color:#7eb3ff;font-weight:500;font-family:'DM Mono',monospace}
 .dday-num{font-family:'DM Mono',monospace;font-size:2.6rem;font-weight:500;color:#7eb3ff;line-height:1;min-width:76px}
 .dday-name{font-size:15px;font-weight:500}.dday-date{font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;font-family:'DM Mono',monospace}
 .dday-progress{margin-left:auto;text-align:center}
@@ -69,12 +81,16 @@ input[type=text]:focus,input[type=date]:focus,select:focus,textarea:focus{border
 .todo-meta{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
 .sub-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer;transition:all 0.15s}
 .week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
-.week-day{background:var(--surface2);border-radius:var(--radius-sm);padding:8px 6px;min-height:100px}
+.week-day{background:var(--surface2);border-radius:var(--radius-sm);padding:8px 6px;min-height:100px;cursor:pointer}
 .week-day.today{border:1.5px solid var(--accent);background:var(--accent-light)}
 .week-day-head{font-size:10px;font-weight:500;color:var(--text3);margin-bottom:4px;text-align:center}
 .week-day-head.today-h{color:var(--accent);font-weight:700}
 .week-day-pct{font-size:9px;color:var(--text2);display:block;text-align:center;margin-bottom:4px;font-weight:500}
-.week-event{font-size:10px;border-radius:4px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.week-event{font-size:10px;border-radius:4px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;justify-content:between;gap:4px}
+.week-event-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.week-event-del{opacity:0;cursor:pointer;font-weight:700;font-size:11px;padding:0 2px;transition:opacity 0.1s}
+.week-event:hover .week-event-del{opacity:0.6}
+.week-event-del:hover{opacity:1 !important;color:var(--red)}
 .study-session-item{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border)}
 .study-session-item:last-child{border-bottom:none}
 .session-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
@@ -164,6 +180,15 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
 </style>
 </head>
 <body>
+
+<div class="lock-screen" id="app-lock-layer">
+  <div class="lock-box">
+    <div class="lock-title">🔐 비밀번호를 입력하세요</div>
+    <input type="password" class="lock-input" id="app-lock-input" placeholder="••••" maxlength="10" onkeydown="if(event.key==='Enter')checkAppUnlock()">
+    <button class="btn btn-primary" onclick="checkAppUnlock()" style="width:100%">입장하기</button>
+  </div>
+</div>
+
 <div class="app">
   <nav class="sidebar">
     <div class="logo">
@@ -180,7 +205,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
     <div class="nav-item" onclick="openAddSubjectModal()"><span class="nav-icon">➕</span> 과목 추가</div>
   </nav>
   <main class="main">
-    <!-- 주간 -->
     <div id="page-weekly" class="page active">
       <div class="page-title">주간 플랜</div>
       <div id="header-today-text" class="page-today-date"></div>
@@ -226,7 +250,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
         </div>
       </div>
     </div>
-    <!-- 월간 -->
     <div id="page-monthly" class="page">
       <div class="page-title" id="cal-title">월간 뷰</div>
       <div class="card">
@@ -235,7 +258,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
       </div>
       <div class="card"><div class="card-title">📋 전체 미완료 할 일</div><div id="all-todo-list"></div></div>
     </div>
-    <!-- 통계 -->
     <div id="page-stats" class="page">
       <div class="page-title">학습 통계</div>
       <div class="stat-grid" id="stats-grid"></div>
@@ -252,7 +274,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
         </div>
       </div>
     </div>
-    <!-- 강의 체크표 -->
     <div id="page-check" class="page">
       <div class="page-title">강의 체크표</div>
       <div class="subject-tabs" id="check-tabs"></div>
@@ -262,7 +283,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </main>
 </div>
 
-<!-- 과목 추가 모달 -->
 <div class="modal-bg" id="add-subject-modal">
   <div class="modal">
     <h2>📋 새 과목 추가</h2>
@@ -283,7 +303,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </div>
 </div>
 
-<!-- 날짜 상세 모달 -->
 <div class="modal-bg" id="day-modal" onclick="if(event.target===this)closeDayModal()">
   <div class="modal" style="width:480px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -294,7 +313,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </div>
 </div>
 
-<!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -333,6 +351,19 @@ let activeStudy=null, timerInterval=null, selectedSubjectKey=null;
 let currentTab='weekly', currentCheckTab=null;
 let saveTimeout=null;
 let isLoaded=false;
+
+// 플래너 비밀번호 시스템 관리 변수
+const PLANNER_PASSWORD = "5013";
+window.checkAppUnlock = function() {
+  const input = document.getElementById('app-lock-input').value;
+  if(input === PLANNER_PASSWORD) {
+    document.getElementById('app-lock-layer').style.display = 'none';
+  } else {
+    alert('비밀번호가 올바르지 않습니다.');
+    document.getElementById('app-lock-input').value = '';
+    document.getElementById('app-lock-input').focus();
+  }
+}
 
 // ── 기본 과목 ──
 const BASE_SUBJECTS=[
@@ -629,6 +660,22 @@ function renderTopDateHeader(){
   if(el) el.textContent = formatted;
 }
 
+// ── 주간 일정 요소 삭제 핸들러 ──
+window.delWeekEvent = function(e, type, id) {
+  e.stopPropagation();
+  if(type === 'study') {
+    studySessions = studySessions.filter(s => String(s.id) !== String(id));
+    if(String(activeStudy) === String(id)) {
+      activeStudy = null;
+      if(timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    }
+  } else if(type === 'todo') {
+    todos = todos.filter(t => String(t.id) !== String(id));
+  }
+  scheduleSave();
+  renderAll();
+}
+
 // ── 주간 요약 ──
 function renderWeekGrid(){
   const dates=getWeekDates(),today=todayStr(),dayNames=['일','월','화','수','목','금','토'];
@@ -636,7 +683,6 @@ function renderWeekGrid(){
   document.getElementById('week-grid').innerHTML=dates.map((d,i)=>{
     const isToday=d===today,dn=new Date(d);
     
-    // 해당 날짜 달성도 계산 (공부 세션 + 할일 모두 포함한 완료/전체 개수)
     const daySessions = studySessions.filter(s=>s.date===d);
     const dayTodos = todos.filter(t=>t.date===d);
     const totalCount = daySessions.length + dayTodos.length;
@@ -644,9 +690,9 @@ function renderWeekGrid(){
     const pctString = totalCount > 0 ? `(${doneCount}/${totalCount})` : '(0/0)';
 
     const evts=[
-      ...exams.filter(e=>e.date===d).map(e=>`<div class="week-event" style="background:#fee2e2;color:#991b1b">📝${e.name}</div>`),
-      ...daySessions.map(s=>{const sub=allSubs.find(sb=>sb.key===s.subjectKey);const c=sub?sub.color:'#888';return`<div class="week-event" style="background:${c}22;color:${c}">${s.done?'✅':'📚'}${s.subjectName}: ${s.task}</div>`}),
-      ...dayTodos.map(t=>`<div class="week-event" style="background:var(--surface2);color:var(--text2)">${t.done?'✅':'·'}${t.text}</div>`),
+      ...exams.filter(e=>e.date===d).map(e=>`<div class="week-event" style="background:#fee2e2;color:#991b1b" onclick="event.stopPropagation();"><span class="week-event-text">📝${e.name}</span></div>`),
+      ...daySessions.map(s=>{const sub=allSubs.find(sb=>sb.key===s.subjectKey);const c=sub?sub.color:'#888';return`<div class="week-event" style="background:${c}22;color:${c}"><span class="week-event-text">${s.done?'✅':'📚'}${s.subjectName}: ${s.task}</span><span class="week-event-del" onclick="delWeekEvent(event, 'study', ${s.id})">×</span></div>`}),
+      ...dayTodos.map(t=>`<div class="week-event" style="background:var(--surface2);color:var(--text2)"><span class="week-event-text">${t.done?'✅':'·'}${t.text}</span><span class="week-event-del" onclick="delWeekEvent(event, 'todo', ${t.id})">×</span></div>`),
     ].join('');
     return`<div class="week-day${isToday?' today':''}" onclick="openDayModal('${d}')"><div class="week-day-head${isToday?' today-h':''}">${dayNames[dn.getDay()]} ${parseInt(d.slice(5,7))}/${parseInt(d.slice(8))}</div><span class="week-day-pct">${pctString}</span>${evts||'<div style="font-size:10px;color:var(--text3);text-align:center;margin-top:8px">—</div>'}</div>`;
   }).join('');
@@ -700,22 +746,39 @@ function renderSubjectTimers(){
   }).join('');
 }
 
-// ── D-day ──
+// ── D-day (멀티 시험 스케줄 연동 고도화) ──
 function renderDday(){
   const all=[...exams,...getAllSubjects().filter(s=>s.examDate).map(s=>({name:s.name+' 시험',date:s.examDate}))];
   all.sort((a,b)=>a.date.localeCompare(b.date));
-  const upcoming=all.filter(e=>diffDays(e.date)>=0)[0];
+  const upcoming=all.filter(e=>diffDays(e.date)>=0);
   const el=document.getElementById('dday-banner');
-  if(!upcoming){el.innerHTML='<div class="dday-empty">📌 시험 일정을 통계 탭에서 추가해주세요</div>';return;}
-  const d=diffDays(upcoming.date),pct=todoPct(),r=21,circ=2*Math.PI*r;
+  if(!upcoming.length){el.innerHTML='<div class="dday-empty">📌 시험 일정을 통계 탭에서 추가해주세요</div>';return;}
+  
+  // 가장 가까운 메인 시험
+  const mainExam = upcoming[0];
+  const d=diffDays(mainExam.date),pct=todoPct(),r=21,circ=2*Math.PI*r;
+  
+  // 그 다음 시험 목록 구성
+  let subExamsHtml = '';
+  if (upcoming.length > 1) {
+    subExamsHtml = `<div class="dday-sub-exams">`;
+    upcoming.slice(1, 5).forEach(ex => {
+      subExamsHtml += `<div class="dday-sub-item"><span>${ex.name}</span><span class="dday-sub-tag">D-${diffDays(ex.date)}</span></div>`;
+    });
+    subExamsHtml += `</div>`;
+  }
+
   el.innerHTML=`<div class="dday-banner-wrap">
-    <div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:3px;font-family:'DM Mono',monospace">NEXT EXAM</div><div class="dday-num">D-${d}</div></div>
-    <div><div class="dday-name">${upcoming.name}</div><div class="dday-date">${upcoming.date}</div></div>
-    <div class="dday-progress"><div class="dday-circle"><svg width="50" height="50" viewBox="0 0 50 50">
-      <circle cx="25" cy="25" r="${r}" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4"/>
-      <circle cx="25" cy="25" r="${r}" fill="none" stroke="#7eb3ff" stroke-width="4"
-        stroke-dasharray="${circ}" stroke-dashoffset="${circ*(1-pct/100)}" stroke-linecap="round" transform="rotate(-90 25 25)"/>
-    </svg><div class="dday-pct">${pct}%</div></div><div class="dday-label">오늘 완료</div></div>
+    <div class="dday-main-row">
+      <div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:3px;font-family:'DM Mono',monospace">NEXT EXAM</div><div class="dday-num">D-${d}</div></div>
+      <div><div class="dday-name">${mainExam.name}</div><div class="dday-date">${mainExam.date}</div></div>
+      <div class="dday-progress"><div class="dday-circle"><svg width="50" height="50" viewBox="0 0 50 50">
+        <circle cx="25" cy="25" r="${r}" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4"/>
+        <circle cx="25" cy="25" r="${r}" fill="none" stroke="#7eb3ff" stroke-width="4"
+          stroke-dasharray="${circ}" stroke-dashoffset="${circ*(1-pct/100)}" stroke-linecap="round" transform="rotate(-90 25 25)"/>
+      </svg><div class="dday-pct">${pct}%</div></div><div class="dday-label">오늘 완료</div></div>
+    </div>
+    ${subExamsHtml}
   </div>`;
 }
 
@@ -791,13 +854,13 @@ window.toggleModalTodo = function(id, dateStr) {
   todos = todos.map(t => t.id === id ? {...t, done: !t.done} : t);
   scheduleSave();
   renderAll();
-  openDayModal(dateStr); // 모달 내부 갱신
+  openDayModal(dateStr);
 }
 window.toggleModalStudy = function(id, dateStr) {
   studySessions = studySessions.map(s => s.id === id ? {...s, done: !s.done} : s);
   scheduleSave();
   renderAll();
-  openDayModal(dateStr); // 모달 내부 갱신
+  openDayModal(dateStr);
 }
 
 // ── 날짜 상세 모달 ──
