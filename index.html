@@ -181,6 +181,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
 </head>
 <body>
 
+<!-- 자물쇠 잠금 화면 패널 -->
 <div class="lock-screen" id="app-lock-layer">
   <div class="lock-box">
     <div class="lock-title">🔐 비밀번호를 입력하세요</div>
@@ -205,6 +206,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
     <div class="nav-item" onclick="openAddSubjectModal()"><span class="nav-icon">➕</span> 과목 추가</div>
   </nav>
   <main class="main">
+    <!-- 주간 -->
     <div id="page-weekly" class="page active">
       <div class="page-title">주간 플랜</div>
       <div id="header-today-text" class="page-today-date"></div>
@@ -250,6 +252,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
         </div>
       </div>
     </div>
+    <!-- 월간 -->
     <div id="page-monthly" class="page">
       <div class="page-title" id="cal-title">월간 뷰</div>
       <div class="card">
@@ -258,6 +261,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
       </div>
       <div class="card"><div class="card-title">📋 전체 미완료 할 일</div><div id="all-todo-list"></div></div>
     </div>
+    <!-- 통계 -->
     <div id="page-stats" class="page">
       <div class="page-title">학습 통계</div>
       <div class="stat-grid" id="stats-grid"></div>
@@ -274,6 +278,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
         </div>
       </div>
     </div>
+    <!-- 강의 체크표 -->
     <div id="page-check" class="page">
       <div class="page-title">강의 체크표</div>
       <div class="subject-tabs" id="check-tabs"></div>
@@ -283,6 +288,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </main>
 </div>
 
+<!-- 과목 추가 모달 -->
 <div class="modal-bg" id="add-subject-modal">
   <div class="modal">
     <h2>📋 새 과목 추가</h2>
@@ -303,6 +309,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </div>
 </div>
 
+<!-- 날짜 상세 모달 -->
 <div class="modal-bg" id="day-modal" onclick="if(event.target===this)closeDayModal()">
   <div class="modal" style="width:480px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -313,6 +320,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </div>
 </div>
 
+<!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -424,7 +432,7 @@ const BASE_SUBJECTS=[
     {week:'',date:'6/10',no:13,title:'담즙생성과 담석의 발생기전',prof:'장성훈',hrs:1},
     {week:'',date:'6/10',no:14,title:'담낭 및 담도의 양성질환',prof:'장성훈',hrs:1},
     {week:'',date:'6/10',no:15,title:'담낭 및 담도의 악성질환',prof:'장성훈',hrs:1},
-    {week:'',date:'6/11',no:16,title:'췌장의 내외분비 기능',prof:'박진명',hrs:1},
+    {week:'11',date:'6/11',no:16,title:'췌장의 내외분비 기능',prof:'박진명',hrs:1},
     {week:'',date:'6/11',no:17,title:'췌장염+증례토의',prof:'박진명',hrs:2},
     {week:'',date:'6/11',no:18,title:'췌장종양',prof:'박진명',hrs:1},
     {week:'',date:'6/12',no:19,title:'췌담도 질환 영상의학',prof:'전용환',hrs:1},
@@ -483,16 +491,15 @@ onSnapshot(docRef,(snap)=>{
   }
 });
 
-// ── 유틸 ──
+// ── 유틸 (디바이스 실제 표준시간 연동 고도화) ──
 function todayStr(){
-  const now=new Date();
-  // 05시 기준: 00~04시는 전날로 간주
-  if(now.getHours()<5)now.setDate(now.getDate()-1);
-  return now.toISOString().slice(0,10).replace(/T.*/,'').split('T')[0];
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const localISOTime = (new Date(now.getTime() - offset)).toISOString().slice(0,10);
+  return localISOTime;
 }
 function todayStrRaw(){
-  // 실제 날짜 (타임라인용)
-  return new Date().toISOString().slice(0,10);
+  return todayStr();
 }
 function diffDays(d){return Math.ceil((new Date(d)-new Date(todayStr()))/86400e3)}
 function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`:`${m}:${String(sc).padStart(2,'0')}`}
@@ -746,7 +753,7 @@ function renderSubjectTimers(){
   }).join('');
 }
 
-// ── D-day (멀티 시험 스케줄 연동 고도화) ──
+// ── D-day ──
 function renderDday(){
   const all=[...exams,...getAllSubjects().filter(s=>s.examDate).map(s=>({name:s.name+' 시험',date:s.examDate}))];
   all.sort((a,b)=>a.date.localeCompare(b.date));
@@ -754,11 +761,9 @@ function renderDday(){
   const el=document.getElementById('dday-banner');
   if(!upcoming.length){el.innerHTML='<div class="dday-empty">📌 시험 일정을 통계 탭에서 추가해주세요</div>';return;}
   
-  // 가장 가까운 메인 시험
   const mainExam = upcoming[0];
   const d=diffDays(mainExam.date),pct=todoPct(),r=21,circ=2*Math.PI*r;
   
-  // 그 다음 시험 목록 구성
   let subExamsHtml = '';
   if (upcoming.length > 1) {
     subExamsHtml = `<div class="dday-sub-exams">`;
