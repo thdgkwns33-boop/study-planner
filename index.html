@@ -95,10 +95,16 @@ input[type=text]:focus,input[type=date]:focus,select:focus,textarea:focus{border
 /* calendar */
 .cal-header{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:10px;font-weight:500;color:var(--text3);margin-bottom:4px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.cal-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:var(--radius-sm);position:relative;border:1px solid transparent}
-.cal-cell.today{background:var(--accent-light);color:var(--accent);font-weight:700}
-.cal-cell.has-exam{background:var(--red-light);color:var(--red);border-color:#f5c6c2}
-.cal-cell.has-todo::after{content:'';width:4px;height:4px;background:var(--accent);border-radius:50%;position:absolute;bottom:2px;left:50%;transform:translateX(-50%)}
+.cal-cell{min-height:72px;display:flex;flex-direction:column;align-items:flex-start;padding:4px 5px;font-size:12px;border-radius:var(--radius-sm);position:relative;border:1px solid var(--border);cursor:default;vertical-align:top}
+.cal-cell.today{background:var(--accent-light);border-color:var(--accent)}
+.cal-cell.today .cal-day-num{color:var(--accent);font-weight:700}
+.cal-cell.has-exam{border-color:#f5c6c2}
+.cal-day-num{font-size:12px;font-weight:500;margin-bottom:2px;width:100%;text-align:center}
+.cal-event{font-size:9px;border-radius:3px;padding:1px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;line-height:1.4}
+.cal-event.ev-exam{background:#fee2e2;color:#991b1b}
+.cal-event.ev-study{background:#e8edff;color:#2454ff}
+.cal-event.ev-todo{background:var(--surface2);color:var(--text2)}
+.cal-more{font-size:9px;color:var(--text3);text-align:center;width:100%}
 .bar-wrap{display:flex;align-items:flex-end;gap:8px;height:90px;margin-top:8px}
 .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
 .bar{width:100%;border-radius:4px 4px 0 0;min-height:3px;transition:height 0.4s}
@@ -705,10 +711,38 @@ function renderCalendar(){
   const today=new Date(),y=today.getFullYear(),m=today.getMonth();
   document.getElementById('cal-title').textContent=`${y}년 ${m+1}월`;
   const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),todayD=today.getDate();
-  const examDates=new Set(exams.map(e=>e.date)),todoDates=new Set(todos.map(t=>t.date)),studyDates=new Set(studySessions.map(s=>s.date));
+  const allSubs=getAllSubjects();
   let html='';
   for(let i=0;i<first;i++)html+='<div></div>';
-  for(let d=1;d<=days;d++){const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;html+=`<div class="cal-cell ${d===todayD?'today':''} ${examDates.has(ds)?'has-exam':''} ${(todoDates.has(ds)||studyDates.has(ds))&&!examDates.has(ds)?'has-todo':''}">${d}</div>`;}
+  for(let d=1;d<=days;d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=d===todayD;
+    const dayExams=exams.filter(e=>e.date===ds);
+    const dayStudy=studySessions.filter(s=>s.date===ds);
+    const dayTodos=todos.filter(t=>t.date===ds&&!t.done);
+    let events='';
+    let count=0;
+    const max=3;
+    for(const e of dayExams){
+      if(count>=max)break;
+      events+=`<div class="cal-event ev-exam">📝${e.name}</div>`;count++;
+    }
+    for(const s of dayStudy){
+      if(count>=max)break;
+      const sub=allSubs.find(sb=>sb.key===s.subjectKey);
+      const c=sub?sub.color:'#2454ff';
+      events+=`<div class="cal-event ev-study" style="background:${c}18;color:${c}">·${s.subjectName}</div>`;count++;
+    }
+    for(const t of dayTodos){
+      if(count>=max)break;
+      events+=`<div class="cal-event ev-todo">·${t.text}</div>`;count++;
+    }
+    const total=dayExams.length+dayStudy.length+dayTodos.length;
+    const more=total>max?`<div class="cal-more">+${total-max}개</div>`:'';
+    html+=`<div class="cal-cell ${isToday?'today':''} ${dayExams.length?'has-exam':''}">
+      <div class="cal-day-num">${d}</div>${events}${more}
+    </div>`;
+  }
   document.getElementById('cal-grid').innerHTML=html;
   const rem=todos.filter(t=>!t.done);
   document.getElementById('all-todo-list').innerHTML=rem.length
