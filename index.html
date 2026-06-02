@@ -69,10 +69,11 @@ input[type=text]:focus,input[type=date]:focus,select:focus,textarea:focus{border
 .todo-meta{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
 .sub-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer;transition:all 0.15s}
 .week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
-.week-day{background:var(--surface2);border-radius:var(--radius-sm);padding:8px 6px;min-height:80px}
+.week-day{background:var(--surface2);border-radius:var(--radius-sm);padding:8px 6px;min-height:100px}
 .week-day.today{border:1.5px solid var(--accent);background:var(--accent-light)}
 .week-day-head{font-size:10px;font-weight:500;color:var(--text3);margin-bottom:4px;text-align:center}
 .week-day-head.today-h{color:var(--accent);font-weight:700}
+.week-day-pct{font-size:9px;color:var(--text2);display:block;text-align:center;margin-bottom:4px;font-weight:500}
 .week-event{font-size:10px;border-radius:4px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .study-session-item{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border)}
 .study-session-item:last-child{border-bottom:none}
@@ -95,7 +96,7 @@ input[type=text]:focus,input[type=date]:focus,select:focus,textarea:focus{border
 /* calendar */
 .cal-header{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:10px;font-weight:500;color:var(--text3);margin-bottom:4px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.cal-cell{min-height:90px;display:flex;flex-direction:column;align-items:flex-start;padding:5px 6px;font-size:12px;border-radius:var(--radius-sm);border:1px solid var(--border);vertical-align:top}
+.cal-cell{min-height:90px;display:flex;flex-direction:column;align-items:flex-start;padding:5px 6px;font-size:12px;border-radius:var(--radius-sm);border:1px solid var(--border);vertical-align:top;cursor:pointer}
 .cal-cell.today{background:var(--accent-light);border-color:var(--accent)}
 .cal-cell.today .cal-day-num{color:var(--accent);font-weight:700}
 .cal-cell.has-exam{border-color:#f5c6c2}
@@ -152,7 +153,8 @@ table.lt tr.imp td.title-cell{font-weight:500;color:#92400e}
 .modal p{font-size:12px;color:var(--text2);margin-bottom:16px}
 textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM Mono',monospace;line-height:1.5;border-radius:var(--radius-sm)}
 .empty{text-align:center;padding:18px;color:var(--text3);font-size:13px}
-.page-title{font-size:19px;font-weight:700;margin-bottom:18px;letter-spacing:-0.5px}
+.page-title{font-size:19px;font-weight:700;margin-bottom:4px;letter-spacing:-0.5px}
+.page-today-date{font-size:13px;color:var(--text2);margin-bottom:18px;font-weight:500}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:760px){
   .app{flex-direction:column}.sidebar{width:100%;height:auto;position:static;flex-direction:row;padding:10px;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border)}
@@ -178,8 +180,10 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
     <div class="nav-item" onclick="openAddSubjectModal()"><span class="nav-icon">➕</span> 과목 추가</div>
   </nav>
   <main class="main">
+    <!-- 주간 -->
     <div id="page-weekly" class="page active">
       <div class="page-title">주간 플랜</div>
+      <div id="header-today-text" class="page-today-date"></div>
       <div id="dday-banner"></div>
       <div class="card"><div class="card-title">📆 이번 주 공부 일정</div><div class="week-grid" id="week-grid"></div></div>
       <div class="stat-grid" id="weekly-stats"></div>
@@ -222,6 +226,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
         </div>
       </div>
     </div>
+    <!-- 월간 -->
     <div id="page-monthly" class="page">
       <div class="page-title" id="cal-title">월간 뷰</div>
       <div class="card">
@@ -230,6 +235,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
       </div>
       <div class="card"><div class="card-title">📋 전체 미완료 할 일</div><div id="all-todo-list"></div></div>
     </div>
+    <!-- 통계 -->
     <div id="page-stats" class="page">
       <div class="page-title">학습 통계</div>
       <div class="stat-grid" id="stats-grid"></div>
@@ -246,6 +252,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
         </div>
       </div>
     </div>
+    <!-- 강의 체크표 -->
     <div id="page-check" class="page">
       <div class="page-title">강의 체크표</div>
       <div class="subject-tabs" id="check-tabs"></div>
@@ -255,6 +262,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </main>
 </div>
 
+<!-- 과목 추가 모달 -->
 <div class="modal-bg" id="add-subject-modal">
   <div class="modal">
     <h2>📋 새 과목 추가</h2>
@@ -275,6 +283,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </div>
 </div>
 
+<!-- 날짜 상세 모달 -->
 <div class="modal-bg" id="day-modal" onclick="if(event.target===this)closeDayModal()">
   <div class="modal" style="width:480px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -285,6 +294,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </div>
 </div>
 
+<!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -457,7 +467,12 @@ function diffDays(d){return Math.ceil((new Date(d)-new Date(todayStr()))/86400e3
 function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`:`${m}:${String(sc).padStart(2,'0')}`}
 function fmtH(s){return(s/3600).toFixed(1)+'h'}
 function mDate(d){const[,m,dd]=d.split('-');return`${parseInt(m)}/${parseInt(dd)}`}
-function weekStartDate(){const d=new Date();d.setDate(d.getDate()-d.getDay());d.setHours(0,0,0,0);return d}
+function weekStartDate(){
+  const d=new Date(todayStr());
+  d.setDate(d.getDate()-d.getDay());
+  d.setHours(0,0,0,0);
+  return d;
+}
 function getWeekDates(){const s=weekStartDate();return Array.from({length:7},(_,i)=>{const d=new Date(s);d.setDate(s.getDate()+i);return d.toISOString().slice(0,10)})}
 
 // ── 네비 ──
@@ -605,18 +620,35 @@ function renderTimeline(){
     <div class="tl-header-row"><div></div><div class="tl-header-cell">Target</div><div></div><div class="tl-header-cell">Total</div></div>${rows}`;
 }
 
+// ── 최상단 오늘 날짜 업데이트 ──
+function renderTopDateHeader(){
+  const days = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+  const now = new Date(todayStr());
+  const formatted = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${days[now.getDay()]}`;
+  const el = document.getElementById('header-today-text');
+  if(el) el.textContent = formatted;
+}
+
 // ── 주간 요약 ──
 function renderWeekGrid(){
   const dates=getWeekDates(),today=todayStr(),dayNames=['일','월','화','수','목','금','토'];
   const allSubs=getAllSubjects();
   document.getElementById('week-grid').innerHTML=dates.map((d,i)=>{
     const isToday=d===today,dn=new Date(d);
+    
+    // 해당 날짜 달성도 계산 (공부 세션 + 할일 모두 포함한 완료/전체 개수)
+    const daySessions = studySessions.filter(s=>s.date===d);
+    const dayTodos = todos.filter(t=>t.date===d);
+    const totalCount = daySessions.length + dayTodos.length;
+    const doneCount = daySessions.filter(s=>s.done).length + dayTodos.filter(t=>t.done).length;
+    const pctString = totalCount > 0 ? `(${doneCount}/${totalCount})` : '(0/0)';
+
     const evts=[
       ...exams.filter(e=>e.date===d).map(e=>`<div class="week-event" style="background:#fee2e2;color:#991b1b">📝${e.name}</div>`),
-      ...studySessions.filter(s=>s.date===d).map(s=>{const sub=allSubs.find(sb=>sb.key===s.subjectKey);const c=sub?sub.color:'#888';return`<div class="week-event" style="background:${c}22;color:${c}">${s.subjectName}: ${s.task}</div>`}),
-      ...todos.filter(t=>t.date===d&&!t.done).slice(0,2).map(t=>`<div class="week-event" style="background:var(--surface2);color:var(--text2)">·${t.text}</div>`),
+      ...daySessions.map(s=>{const sub=allSubs.find(sb=>sb.key===s.subjectKey);const c=sub?sub.color:'#888';return`<div class="week-event" style="background:${c}22;color:${c}">${s.done?'✅':'📚'}${s.subjectName}: ${s.task}</div>`}),
+      ...dayTodos.map(t=>`<div class="week-event" style="background:var(--surface2);color:var(--text2)">${t.done?'✅':'·'}${t.text}</div>`),
     ].join('');
-    return`<div class="week-day${isToday?' today':''}"><div class="week-day-head${isToday?' today-h':''}">${dayNames[dn.getDay()]} ${parseInt(d.slice(5,7))}/${parseInt(d.slice(8))}</div>${evts||'<div style="font-size:10px;color:var(--text3);text-align:center;margin-top:8px">—</div>'}</div>`;
+    return`<div class="week-day${isToday?' today':''}" onclick="openDayModal('${d}')"><div class="week-day-head${isToday?' today-h':''}">${dayNames[dn.getDay()]} ${parseInt(d.slice(5,7))}/${parseInt(d.slice(8))}</div><span class="week-day-pct">${pctString}</span>${evts||'<div style="font-size:10px;color:var(--text3);text-align:center;margin-top:8px">—</div>'}</div>`;
   }).join('');
 }
 
@@ -716,7 +748,7 @@ function renderTodos(){
 
 // ── 캘린더 ──
 function renderCalendar(){
-  const today=new Date(),y=today.getFullYear(),m=today.getMonth();
+  const today=new Date(todayStr()),y=today.getFullYear(),m=today.getMonth();
   document.getElementById('cal-title').textContent=`${y}년 ${m+1}월`;
   const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),todayD=today.getDate();
   const allSubs=getAllSubjects();
@@ -727,7 +759,7 @@ function renderCalendar(){
     const isToday=d===todayD;
     const dayExams=exams.filter(e=>e.date===ds);
     const dayStudy=studySessions.filter(s=>s.date===ds);
-    const dayTodos=todos.filter(t=>t.date===ds&&!t.done);
+    const dayTodos=todos.filter(t=>t.date===ds);
     let events='';
     for(const e of dayExams){
       events+=`<div class="cal-event ev-exam">📝 ${e.name}</div>`;
@@ -737,20 +769,35 @@ function renderCalendar(){
       const c=sub?sub.color:'#2454ff';
       const elapsed=s.elapsed?Math.floor(s.elapsed/1000):0;
       const timeStr=elapsed>0?` (${fmtSec(elapsed)})`:'';
-      events+=`<div class="cal-event" style="background:${c}15;color:${c}" onclick="openDayModal('${ds}')">${s.done?'✅':'📚'} ${s.subjectName} ${s.task}${timeStr}</div>`;
+      events+=`<div class="cal-event" style="background:${c}15;color:${c}">${s.done?'✅':'📚'} ${s.subjectName} ${s.task}${timeStr}</div>`;
     }
     for(const t of dayTodos){
-      events+=`<div class="cal-event ev-todo" onclick="openDayModal('${ds}')">${t.done?'✅':'⬜'} ${t.text}</div>`;
+      events+=`<div class="cal-event ${t.done?'':'ev-todo'}" style="${t.done?'background:var(--green-light);color:var(--green);':''}">${t.done?'✅':'⬜'} ${t.text}</div>`;
     }
-    html+=`<div class="cal-cell ${isToday?'today':''} ${dayExams.length?'has-exam':''}" onclick="if(event.target===this)openDayModal('${ds}')">
+    html+=`<div class="cal-cell ${isToday?'today':''} ${dayExams.length?'has-exam':''}" onclick="openDayModal('${ds}')">
       <div class="cal-day-num">${d}</div>${events}
     </div>`;
   }
   document.getElementById('cal-grid').innerHTML=html;
+  
   const rem=todos.filter(t=>!t.done);
   document.getElementById('all-todo-list').innerHTML=rem.length
     ?rem.slice(0,12).map(t=>`<div class="todo-item"><input type="checkbox" class="todo-cb" onchange="toggleTodo(${t.id})"><div style="flex:1;min-width:0"><div class="todo-text">${t.text}</div></div><div class="todo-meta">${mDate(t.date)}</div><span class="badge badge-${t.prio==='높음'?'high':t.prio==='낮음'?'low':'mid'}">${t.prio}</span><button class="btn btn-danger btn-sm" onclick="delTodo(${t.id})">삭제</button></div>`).join('')+(rem.length>12?`<div class="empty">+${rem.length-12}개 더</div>`:'')
     :'<div class="empty">남은 할 일이 없어요 🎉</div>';
+}
+
+// ── 날짜 상세 모달 내 체크박스 상호작용 함수 ──
+window.toggleModalTodo = function(id, dateStr) {
+  todos = todos.map(t => t.id === id ? {...t, done: !t.done} : t);
+  scheduleSave();
+  renderAll();
+  openDayModal(dateStr); // 모달 내부 갱신
+}
+window.toggleModalStudy = function(id, dateStr) {
+  studySessions = studySessions.map(s => s.id === id ? {...s, done: !s.done} : s);
+  scheduleSave();
+  renderAll();
+  openDayModal(dateStr); // 모달 내부 갱신
 }
 
 // ── 날짜 상세 모달 ──
@@ -777,11 +824,11 @@ window.openDayModal=function(ds){
       const elapsed=s.elapsed?Math.floor(s.elapsed/1000):0;
       const timeStr=elapsed>0?` <span style="font-family:'DM Mono',monospace;font-size:11px;color:${c};opacity:0.8">(${fmtSec(elapsed)})</span>`:'';
       return`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:${c}12;border-radius:8px;margin-bottom:5px">
+        <input type="checkbox" class="todo-cb" ${s.done?'checked':''} onchange="toggleModalStudy(${s.id}, '${ds}')">
         <span style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0"></span>
-        <span style="font-size:13px;font-weight:500;color:${c}">${s.subjectName}</span>
-        <span style="font-size:12px;color:var(--text2);flex:1">${s.task}</span>
+        <span style="font-size:13px;font-weight:500;color:${c}; ${s.done?'text-decoration:line-through;opacity:0.6;':''}">${s.subjectName}</span>
+        <span style="font-size:12px;color:var(--text2);flex:1; ${s.done?'text-decoration:line-through;opacity:0.6;':''}">${s.task}</span>
         ${timeStr}
-        <span style="font-size:11px">${s.done?'✅':''}</span>
       </div>`;
     }).join('');
   }
@@ -789,7 +836,7 @@ window.openDayModal=function(ds){
   if(dayTodos.length){
     html+=`<div style="font-size:11px;font-weight:600;color:var(--text3);margin:${(dayExams.length||dayStudy.length)?'12px':0} 0 6px;letter-spacing:0.5px">✅ 할 일</div>`;
     html+=dayTodos.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:8px;margin-bottom:5px">
-      <span style="font-size:12px">${t.done?'✅':'⬜'}</span>
+      <input type="checkbox" class="todo-cb" ${t.done?'checked':''} onchange="toggleModalTodo(${t.id}, '${ds}')">
       <span style="font-size:13px;${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.text}</span>
       <span class="badge badge-${t.prio==='높음'?'high':t.prio==='낮음'?'low':'mid'}" style="margin-left:auto">${t.prio}</span>
     </div>`).join('');
@@ -868,7 +915,7 @@ window.renderCheckTable=function(){
 
 // ── renderAll ──
 function renderAll(){
-  renderDday();renderWeeklyStats();renderWeekGrid();renderSubjectPills();
+  renderTopDateHeader();renderDday();renderWeeklyStats();renderWeekGrid();renderSubjectPills();
   renderStudySessions();renderSubjectTimers();renderTimeline();renderTodos();
   renderCalendar();renderStats();
   if(currentTab==='check'){renderCheckTabs();window.renderCheckTable();}
