@@ -187,6 +187,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
             <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
               <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="subject-pill-selector"></div>
               <div class="input-row">
+                <input type="date" id="study-date">
                 <input type="text" id="study-task-input" placeholder="예: 1~5강 정리, 족보 풀기..." onkeydown="if(event.key==='Enter')addStudySession()">
                 <button class="btn btn-primary" onclick="addStudySession()">추가</button>
               </div>
@@ -432,7 +433,16 @@ onSnapshot(docRef,(snap)=>{
 });
 
 // ── 유틸 ──
-function todayStr(){return new Date().toISOString().slice(0,10)}
+function todayStr(){
+  const now=new Date();
+  // 05시 기준: 00~04시는 전날로 간주
+  if(now.getHours()<5)now.setDate(now.getDate()-1);
+  return now.toISOString().slice(0,10).replace(/T.*/,'').split('T')[0];
+}
+function todayStrRaw(){
+  // 실제 날짜 (타임라인용)
+  return new Date().toISOString().slice(0,10);
+}
 function diffDays(d){return Math.ceil((new Date(d)-new Date(todayStr()))/86400e3)}
 function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`:`${m}:${String(sc).padStart(2,'0')}`}
 function fmtH(s){return(s/3600).toFixed(1)+'h'}
@@ -467,7 +477,8 @@ window.addStudySession=function(){
   if(!selectedSubjectKey)return alert('과목을 먼저 선택해주세요');
   const task=document.getElementById('study-task-input').value.trim()||'공부';
   const sub=getAllSubjects().find(s=>s.key===selectedSubjectKey);
-  studySessions.push({id:Date.now(),subjectKey:selectedSubjectKey,subjectName:sub.name,task,date:todayStr(),startTs:null,endTs:null,elapsed:0,done:false,active:false});
+  const sDate=document.getElementById('study-date').value||todayStr();
+  studySessions.push({id:Date.now(),subjectKey:selectedSubjectKey,subjectName:sub.name,task,date:sDate,startTs:null,endTs:null,elapsed:0,done:false,active:false});
   document.getElementById('study-task-input').value='';scheduleSave();renderAll();
 }
 window.startStudy=function(id){
@@ -694,10 +705,10 @@ function renderCalendar(){
   const today=new Date(),y=today.getFullYear(),m=today.getMonth();
   document.getElementById('cal-title').textContent=`${y}년 ${m+1}월`;
   const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),todayD=today.getDate();
-  const examDates=new Set(exams.map(e=>e.date)),todoDates=new Set(todos.map(t=>t.date));
+  const examDates=new Set(exams.map(e=>e.date)),todoDates=new Set(todos.map(t=>t.date)),studyDates=new Set(studySessions.map(s=>s.date));
   let html='';
   for(let i=0;i<first;i++)html+='<div></div>';
-  for(let d=1;d<=days;d++){const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;html+=`<div class="cal-cell ${d===todayD?'today':''} ${examDates.has(ds)?'has-exam':''} ${todoDates.has(ds)&&!examDates.has(ds)?'has-todo':''}">${d}</div>`;}
+  for(let d=1;d<=days;d++){const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;html+=`<div class="cal-cell ${d===todayD?'today':''} ${examDates.has(ds)?'has-exam':''} ${(todoDates.has(ds)||studyDates.has(ds))&&!examDates.has(ds)?'has-todo':''}">${d}</div>`;}
   document.getElementById('cal-grid').innerHTML=html;
   const rem=todos.filter(t=>!t.done);
   document.getElementById('all-todo-list').innerHTML=rem.length
@@ -776,6 +787,7 @@ function renderAll(){
 }
 
 document.getElementById('todo-date').value=todayStr();
+document.getElementById('study-date').value=todayStr();
 renderAll();
 </script>
 </body>
