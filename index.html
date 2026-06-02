@@ -178,7 +178,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
     <div class="nav-item" onclick="openAddSubjectModal()"><span class="nav-icon">➕</span> 과목 추가</div>
   </nav>
   <main class="main">
-    <!-- 주간 -->
     <div id="page-weekly" class="page active">
       <div class="page-title">주간 플랜</div>
       <div id="dday-banner"></div>
@@ -223,7 +222,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
         </div>
       </div>
     </div>
-    <!-- 월간 -->
     <div id="page-monthly" class="page">
       <div class="page-title" id="cal-title">월간 뷰</div>
       <div class="card">
@@ -232,7 +230,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
       </div>
       <div class="card"><div class="card-title">📋 전체 미완료 할 일</div><div id="all-todo-list"></div></div>
     </div>
-    <!-- 통계 -->
     <div id="page-stats" class="page">
       <div class="page-title">학습 통계</div>
       <div class="stat-grid" id="stats-grid"></div>
@@ -249,7 +246,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
         </div>
       </div>
     </div>
-    <!-- 강의 체크표 -->
     <div id="page-check" class="page">
       <div class="page-title">강의 체크표</div>
       <div class="subject-tabs" id="check-tabs"></div>
@@ -259,7 +255,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </main>
 </div>
 
-<!-- 과목 추가 모달 -->
 <div class="modal-bg" id="add-subject-modal">
   <div class="modal">
     <h2>📋 새 과목 추가</h2>
@@ -280,7 +275,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </div>
 </div>
 
-<!-- 날짜 상세 모달 -->
 <div class="modal-bg" id="day-modal" onclick="if(event.target===this)closeDayModal()">
   <div class="modal" style="width:480px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -291,7 +285,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
   </div>
 </div>
 
-<!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -361,17 +354,17 @@ const BASE_SUBJECTS=[
     {week:'',date:'6/4(목)',no:3,title:'산소요법',prof:'문다혜',hrs:1,manager:'준호'},
     {week:'',date:'6/4(목)',no:4,title:'기계요법',prof:'문다혜',hrs:1,manager:'준호'},
     {week:'',date:'6/4(목)',no:5,title:'급성호흡곤란 증후군',prof:'문다혜',hrs:1,manager:'준호'},
-    {week:'',date:'6/5(금)',no:6,title:'폐종양의 병리본',prof:'윤식호',hrs:1,manager:'준호'},
-    {week:'',date:'6/5(금)',no:7,title:'폐종양의 임상',prof:'히연정',hrs:2,manager:'혜형'},
+    {week:'6/5(금)',no:6,title:'폐종양의 병리본',prof:'윤식호',hrs:1,manager:'준호'},
+    {week:'6/5(금)',no:7,title:'폐종양의 임상',prof:'히연정',hrs:2,manager:'혜형'},
     {week:'13주차',date:'6/8(월)',no:8,title:'미만성 간질성 폐질환 및 폐종양의 병리',prof:'류영준',hrs:1,manager:'현준'},
     {week:'',date:'6/8(월)',no:9,title:'미만성 간질성 폐질환 임상 및 사르코이드증',prof:'한선숙',hrs:2,manager:'유진'},
-    {week:'',date:'6/9(화)',no:10,title:'폐종양의 방사선 치료',prof:'정누리현',hrs:1,manager:'준호'},
-    {week:'',date:'6/9(화)',no:11,title:'흉부재활',prof:'박회원',hrs:1,manager:'하준'},
-    {week:'',date:'6/9(화)',no:12,title:'흡연과 건강',prof:'김선미',hrs:1,manager:'혜형'},
-    {week:'',date:'6/9(화)',no:13,title:'흉막질환의 외과적 처치',prof:'소성준',hrs:2,manager:'현준'},
-    {week:'',date:'6/11(목)',no:14,title:'흉부영상진단의 실제',prof:'한현',hrs:2,manager:'하준'},
-    {week:'',date:'6/12(금)',no:15,title:'염증성 폐질환의 외과적 치료',prof:'이한필',hrs:1,manager:'주현'},
-    {week:'',date:'6/12(금)',no:16,title:'폐종양의 외과적 치료',prof:'이한필',hrs:2,manager:'준호'},
+    {week:'6/9(화)',no:10,title:'폐종양의 방사선 치료',prof:'정누리현',hrs:1,manager:'준호'},
+    {week:'6/9(화)',no:11,title:'흉부재활',prof:'박회원',hrs:1,manager:'하준'},
+    {week:'6/9(화)',no:12,title:'흡연과 건강',prof:'김선미',hrs:1,manager:'혜형'},
+    {week:'6/9(화)',no:13,title:'흉막질환의 외과적 처치',prof:'소성준',hrs:2,manager:'현준'},
+    {week:'6/11(목)',no:14,title:'흉부영상진단의 실제',prof:'한현',hrs:2,manager:'하준'},
+    {week:'6/12(금)',no:15,title:'염증성 폐질환의 외과적 치료',prof:'이한필',hrs:1,manager:'주현'},
+    {week:'6/12(금)',no:16,title:'폐종양의 외과적 치료',prof:'이한필',hrs:2,manager:'준호'},
     {week:'14주차',date:'6/15(월)',no:17,title:'인문사회 의학: 흡연의 역사와 사회',prof:'소성준',hrs:1,manager:'준호'},
   ]},
   {key:'gi',name:'소화기학',color:'#b45309',examDate:'2025-06-15',hasManager:false,lectures:[
@@ -516,7 +509,11 @@ window.stopStudy=function(id){
   scheduleSave();renderAll();
 }
 window.toggleStudyDone=function(id){studySessions=studySessions.map(s=>s.id===id?{...s,done:!s.done}:s);scheduleSave();renderAll();}
-window.delStudySession=function(id){if(activeStudy===id)window.stopStudy(id);studySessions=studySessions.filter(s=>s.id!==id);scheduleSave();renderAll();}
+window.delStudySession=function(id){
+  if(String(activeStudy) === String(id)) window.stopStudy(id);
+  studySessions=studySessions.filter(s=>String(s.id)!==String(id));
+  scheduleSave();renderAll();
+}
 function studyElapsed(s){let e=s.elapsed;if(s.active&&s.startTs)e+=Date.now()-s.startTs;return Math.floor(e/1000);}
 function studyPct(){const t=studySessions.filter(s=>s.date===todayStr());return t.length?Math.round(t.filter(s=>s.done).length/t.length*100):0;}
 
@@ -740,12 +737,12 @@ function renderCalendar(){
       const c=sub?sub.color:'#2454ff';
       const elapsed=s.elapsed?Math.floor(s.elapsed/1000):0;
       const timeStr=elapsed>0?` (${fmtSec(elapsed)})`:'';
-      events+=`<div class="cal-event" style="background:${c}15;color:${c}">${s.done?'✅':'📚'} ${s.subjectName} ${s.task}${timeStr}</div>`;
+      events+=`<div class="cal-event" style="background:${c}15;color:${c}" onclick="openDayModal('${ds}')">${s.done?'✅':'📚'} ${s.subjectName} ${s.task}${timeStr}</div>`;
     }
     for(const t of dayTodos){
-      events+=`<div class="cal-event ev-todo">${t.done?'✅':'⬜'} ${t.text}</div>`;
+      events+=`<div class="cal-event ev-todo" onclick="openDayModal('${ds}')">${t.done?'✅':'⬜'} ${t.text}</div>`;
     }
-    html+=`<div class="cal-cell ${isToday?'today':''} ${dayExams.length?'has-exam':''}">
+    html+=`<div class="cal-cell ${isToday?'today':''} ${dayExams.length?'has-exam':''}" onclick="if(event.target===this)openDayModal('${ds}')">
       <div class="cal-day-num">${d}</div>${events}
     </div>`;
   }
