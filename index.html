@@ -95,12 +95,12 @@ input[type=text]:focus,input[type=date]:focus,select:focus,textarea:focus{border
 /* calendar */
 .cal-header{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:10px;font-weight:500;color:var(--text3);margin-bottom:4px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.cal-cell{min-height:72px;display:flex;flex-direction:column;align-items:flex-start;padding:4px 5px;font-size:12px;border-radius:var(--radius-sm);position:relative;border:1px solid var(--border);cursor:default;vertical-align:top}
+.cal-cell{min-height:90px;display:flex;flex-direction:column;align-items:flex-start;padding:5px 6px;font-size:12px;border-radius:var(--radius-sm);border:1px solid var(--border);vertical-align:top}
 .cal-cell.today{background:var(--accent-light);border-color:var(--accent)}
 .cal-cell.today .cal-day-num{color:var(--accent);font-weight:700}
 .cal-cell.has-exam{border-color:#f5c6c2}
 .cal-day-num{font-size:12px;font-weight:500;margin-bottom:2px;width:100%;text-align:center}
-.cal-event{font-size:9px;border-radius:3px;padding:1px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;line-height:1.4}
+.cal-event{font-size:9px;border-radius:3px;padding:1px 4px;margin-bottom:2px;width:100%;line-height:1.4;word-break:keep-all;overflow-wrap:break-word}
 .cal-event.ev-exam{background:#fee2e2;color:#991b1b}
 .cal-event.ev-study{background:#e8edff;color:#2454ff}
 .cal-event.ev-todo{background:var(--surface2);color:var(--text2)}
@@ -277,6 +277,17 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
       <button class="btn" onclick="closeAddSubjectModal()">취소</button>
       <button class="btn btn-primary" onclick="submitNewSubject()">추가하기</button>
     </div>
+  </div>
+</div>
+
+<!-- 날짜 상세 모달 -->
+<div class="modal-bg" id="day-modal" onclick="if(event.target===this)closeDayModal()">
+  <div class="modal" style="width:480px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h2 id="day-modal-title">6월 3일</h2>
+      <button class="btn btn-sm" onclick="closeDayModal()">닫기</button>
+    </div>
+    <div id="day-modal-content"></div>
   </div>
 </div>
 
@@ -721,26 +732,21 @@ function renderCalendar(){
     const dayStudy=studySessions.filter(s=>s.date===ds);
     const dayTodos=todos.filter(t=>t.date===ds&&!t.done);
     let events='';
-    let count=0;
-    const max=3;
     for(const e of dayExams){
-      if(count>=max)break;
-      events+=`<div class="cal-event ev-exam">📝${e.name}</div>`;count++;
+      events+=`<div class="cal-event ev-exam">📝 ${e.name}</div>`;
     }
     for(const s of dayStudy){
-      if(count>=max)break;
       const sub=allSubs.find(sb=>sb.key===s.subjectKey);
       const c=sub?sub.color:'#2454ff';
-      events+=`<div class="cal-event ev-study" style="background:${c}18;color:${c}">·${s.subjectName}</div>`;count++;
+      const elapsed=s.elapsed?Math.floor(s.elapsed/1000):0;
+      const timeStr=elapsed>0?` (${fmtSec(elapsed)})`:'';
+      events+=`<div class="cal-event" style="background:${c}15;color:${c}">${s.done?'✅':'📚'} ${s.subjectName} ${s.task}${timeStr}</div>`;
     }
     for(const t of dayTodos){
-      if(count>=max)break;
-      events+=`<div class="cal-event ev-todo">·${t.text}</div>`;count++;
+      events+=`<div class="cal-event ev-todo">${t.done?'✅':'⬜'} ${t.text}</div>`;
     }
-    const total=dayExams.length+dayStudy.length+dayTodos.length;
-    const more=total>max?`<div class="cal-more">+${total-max}개</div>`:'';
     html+=`<div class="cal-cell ${isToday?'today':''} ${dayExams.length?'has-exam':''}">
-      <div class="cal-day-num">${d}</div>${events}${more}
+      <div class="cal-day-num">${d}</div>${events}
     </div>`;
   }
   document.getElementById('cal-grid').innerHTML=html;
@@ -748,6 +754,57 @@ function renderCalendar(){
   document.getElementById('all-todo-list').innerHTML=rem.length
     ?rem.slice(0,12).map(t=>`<div class="todo-item"><input type="checkbox" class="todo-cb" onchange="toggleTodo(${t.id})"><div style="flex:1;min-width:0"><div class="todo-text">${t.text}</div></div><div class="todo-meta">${mDate(t.date)}</div><span class="badge badge-${t.prio==='높음'?'high':t.prio==='낮음'?'low':'mid'}">${t.prio}</span><button class="btn btn-danger btn-sm" onclick="delTodo(${t.id})">삭제</button></div>`).join('')+(rem.length>12?`<div class="empty">+${rem.length-12}개 더</div>`:'')
     :'<div class="empty">남은 할 일이 없어요 🎉</div>';
+}
+
+// ── 날짜 상세 모달 ──
+window.openDayModal=function(ds){
+  const allSubs=getAllSubjects();
+  const [y,m,d]=ds.split('-');
+  const label=`${parseInt(m)}월 ${parseInt(d)}일`;
+  document.getElementById('day-modal-title').textContent=label;
+  const dayExams=exams.filter(e=>e.date===ds);
+  const dayStudy=studySessions.filter(s=>s.date===ds);
+  const dayTodos=todos.filter(t=>t.date===ds);
+  let html='';
+  // 시험
+  if(dayExams.length){
+    html+=`<div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px;letter-spacing:0.5px">📝 시험</div>`;
+    html+=dayExams.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fee2e2;border-radius:8px;margin-bottom:6px;font-size:13px;color:#991b1b;font-weight:500">${e.name}</div>`).join('');
+  }
+  // 공부
+  if(dayStudy.length){
+    html+=`<div style="font-size:11px;font-weight:600;color:var(--text3);margin:${dayExams.length?'12px':0} 0 6px;letter-spacing:0.5px">📚 공부</div>`;
+    html+=dayStudy.map(s=>{
+      const sub=allSubs.find(sb=>sb.key===s.subjectKey);
+      const c=sub?sub.color:'#2454ff';
+      const elapsed=s.elapsed?Math.floor(s.elapsed/1000):0;
+      const timeStr=elapsed>0?` <span style="font-family:'DM Mono',monospace;font-size:11px;color:${c};opacity:0.8">(${fmtSec(elapsed)})</span>`:'';
+      return`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:${c}12;border-radius:8px;margin-bottom:5px">
+        <span style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0"></span>
+        <span style="font-size:13px;font-weight:500;color:${c}">${s.subjectName}</span>
+        <span style="font-size:12px;color:var(--text2);flex:1">${s.task}</span>
+        ${timeStr}
+        <span style="font-size:11px">${s.done?'✅':''}</span>
+      </div>`;
+    }).join('');
+  }
+  // 할 일
+  if(dayTodos.length){
+    html+=`<div style="font-size:11px;font-weight:600;color:var(--text3);margin:${(dayExams.length||dayStudy.length)?'12px':0} 0 6px;letter-spacing:0.5px">✅ 할 일</div>`;
+    html+=dayTodos.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:8px;margin-bottom:5px">
+      <span style="font-size:12px">${t.done?'✅':'⬜'}</span>
+      <span style="font-size:13px;${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.text}</span>
+      <span class="badge badge-${t.prio==='높음'?'high':t.prio==='낮음'?'low':'mid'}" style="margin-left:auto">${t.prio}</span>
+    </div>`).join('');
+  }
+  if(!dayExams.length&&!dayStudy.length&&!dayTodos.length){
+    html='<div class="empty">이 날은 일정이 없어요</div>';
+  }
+  document.getElementById('day-modal-content').innerHTML=html;
+  document.getElementById('day-modal').classList.add('open');
+}
+window.closeDayModal=function(){
+  document.getElementById('day-modal').classList.remove('open');
 }
 
 // ── 통계 ──
