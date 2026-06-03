@@ -188,6 +188,9 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
 .dt-block-time{font-family:'DM Mono',monospace;font-size:10px;opacity:0.75;white-space:nowrap}
 .dt-block-name{font-weight:500}
 .dt-block-task{opacity:0.85;flex:1}
+.week-day.drag-over{border:2px dashed var(--accent);background:var(--accent-light) !important}
+.week-event[draggable]{cursor:grab}.week-event[draggable]:active{cursor:grabbing;opacity:0.6}
+.week-event.dragging{opacity:0.4;border:1px dashed var(--border2)}
 @media(max-width:760px){
   .app{flex-direction:column}.sidebar{width:100%;height:auto;position:static;flex-direction:row;padding:10px;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border)}
   .logo,.nav-section{display:none}.nav-item{border-left:none;border-bottom:3px solid transparent;padding:7px 12px;white-space:nowrap}.nav-item.active{border-left:none;border-bottom-color:var(--accent)}
@@ -203,6 +206,19 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
     <button class="btn btn-primary" onclick="checkAppUnlock()" style="width:100%">입장하기</button>
   </div>
 </div>
+<script>
+// 잠금 해제 — module 밖에서 선언해야 onclick에서 바로 접근 가능
+function checkAppUnlock(){
+  const v = document.getElementById('app-lock-input').value;
+  if(v === '0224'){
+    document.getElementById('app-lock-layer').style.display='none';
+  } else {
+    alert('비밀번호가 올바르지 않습니다.');
+    document.getElementById('app-lock-input').value='';
+    document.getElementById('app-lock-input').focus();
+  }
+}
+</script>
 
 <div class="app">
   <nav class="sidebar">
@@ -396,13 +412,7 @@ const db = getFirestore(app);
 const DOC_ID = "hajun";
 const docRef = doc(db, "planner", DOC_ID);
 
-// ── 잠금 ──
-const PLANNER_PASSWORD = "0224";
-window.checkAppUnlock = function(){
-  const v = document.getElementById('app-lock-input').value;
-  if(v === PLANNER_PASSWORD){ document.getElementById('app-lock-layer').style.display='none'; }
-  else{ alert('비밀번호가 올바르지 않습니다.'); document.getElementById('app-lock-input').value=''; document.getElementById('app-lock-input').focus(); }
-}
+// 잠금 해제는 module 밖 <script>에서 처리
 
 // ── 동기화 상태 ──
 function setSyncStatus(s){
@@ -824,10 +834,10 @@ function renderWeekGrid(){
     const done2=daySessions.filter(s=>s.done).length+dayTodos.filter(t=>t.done).length;
     const evts=[
       ...exams.filter(e=>e.date===d).map(e=>`<div class="week-event" style="background:#fee2e2;color:#991b1b"><span class="week-event-text">📝${e.name}</span></div>`),
-      ...daySessions.map(s=>{const sub=allSubs.find(sb=>sb.key===s.subjectKey);const c=sub?sub.color:'#888';const tLabel=s.manualStart?` ${s.manualStart}~${s.manualEnd}`:'';return`<div class="week-event" style="background:${c}22;color:${c}"><span class="week-event-text">${s.done?'✅':'📚'}${s.subjectName}: ${s.task}${tLabel}</span><span class="week-event-del" onclick="delWeekEvent(event,'study',${s.id})">×</span></div>`}),
-      ...dayTodos.map(t=>`<div class="week-event" style="background:var(--surface2);color:var(--text2)"><span class="week-event-text">${t.done?'✅':'·'}${t.text}</span><span class="week-event-del" onclick="delWeekEvent(event,'todo',${t.id})">×</span></div>`),
+      ...daySessions.map(s=>{const sub=allSubs.find(sb=>sb.key===s.subjectKey);const c=sub?sub.color:'#888';const tLabel=s.manualStart?` ${s.manualStart}~${s.manualEnd}`:'';return`<div class="week-event" draggable="true" ondragstart="onDragStart(event,'study',${s.id})" style="background:${c}22;color:${c}"><span class="week-event-text">${s.done?'✅':'📚'}${s.subjectName}: ${s.task}${tLabel}</span><span class="week-event-del" onclick="delWeekEvent(event,'study',${s.id})">×</span></div>`}),
+      ...dayTodos.map(t=>`<div class="week-event" draggable="true" ondragstart="onDragStart(event,'todo',${t.id})" style="background:var(--surface2);color:var(--text2)"><span class="week-event-text">${t.done?'✅':'·'}${t.text}</span><span class="week-event-del" onclick="delWeekEvent(event,'todo',${t.id})">×</span></div>`),
     ].join('');
-    return`<div class="week-day${isToday?' today':''}" onclick="openDayModal('${d}')">
+    return`<div class="week-day${isToday?' today':''}" onclick="openDayModal('${d}')" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${d}')">
       <div class="week-day-head${isToday?' today-h':''}">${dayNames[dn.getDay()]} ${parseInt(d.slice(5,7))}/${parseInt(d.slice(8))}</div>
       <span class="week-day-pct">${total>0?`${done2}/${total}`:''}</span>
       ${evts||'<div style="font-size:10px;color:var(--text3);text-align:center;margin-top:8px">—</div>'}
@@ -840,6 +850,38 @@ window.delWeekEvent=function(e,type,id){
   else{todos=todos.filter(t=>String(t.id)!==String(id));}
   scheduleSave();renderAll();
 }
+
+// ── 드래그앤드롭 ──
+let dragType=null, dragId=null;
+window.onDragStart=function(e,type,id){
+  dragType=type; dragId=id;
+  e.stopPropagation();
+  setTimeout(()=>e.target.classList.add('dragging'),0);
+}
+window.onDragOver=function(e){
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+window.onDragLeave=function(e){
+  e.currentTarget.classList.remove('drag-over');
+}
+window.onDrop=function(e,targetDate){
+  e.preventDefault();e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over');
+  if(!dragType||!dragId)return;
+  if(dragType==='study'){
+    studySessions=studySessions.map(s=>String(s.id)===String(dragId)?{...s,date:targetDate}:s);
+  } else if(dragType==='todo'){
+    todos=todos.map(t=>String(t.id)===String(dragId)?{...t,date:targetDate}:t);
+  }
+  dragType=null;dragId=null;
+  scheduleSave();renderAll();
+}
+document.addEventListener('dragend',()=>{
+  document.querySelectorAll('.dragging').forEach(el=>el.classList.remove('dragging'));
+  document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  dragType=null;dragId=null;
+});
 
 // ── 캘린더 ──
 function renderCalendar(){
