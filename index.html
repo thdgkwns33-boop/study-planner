@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>하준 스터디 플래너</title>
+<title>스터디 플래너</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -395,10 +395,9 @@ function checkAppUnlock(){
   </div>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyBp9FB5sP6H1lmoIL4KVckWN6PBbflxBXE",
   authDomain: "study-planner-41447.firebaseapp.com",
@@ -407,12 +406,13 @@ const firebaseConfig = {
   messagingSenderId: "78047747646",
   appId: "1:78047747646:web:63e8bb32b00b6c80defb6f"
 };
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const DOC_ID = "hajun";
-const docRef = doc(db, "planner", DOC_ID);
-
-// 잠금 해제는 module 밖 <script>에서 처리
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const docRef = db.collection("planner").doc("hajun");
+// compat API helpers
+const getDoc = (ref) => ref.get();
+const setDoc = (ref, data) => ref.set(data);
+const onSnapshot = (ref, cb) => ref.onSnapshot(cb);
 
 // ── 동기화 상태 ──
 function setSyncStatus(s){
@@ -506,21 +506,20 @@ const BASE_SUBJECTS=[
 function getAllSubjects(){ return [...BASE_SUBJECTS,...extraSubjects.map((s,i)=>({...s,color:SUB_COLORS[(BASE_SUBJECTS.length+i)%SUB_COLORS.length]}))]; }
 
 // ── Firebase ──
-async function saveToFirebase(){
+function saveToFirebase(){
   if(!isLoaded)return;setSyncStatus('saving');
-  try{ await setDoc(docRef,{todos,exams,studySessions,timerSessions,checkData,extraSubjects,updatedAt:Date.now()});setSyncStatus('ok'); }
-  catch(e){ console.error(e);setSyncStatus('err'); }
+  setDoc(docRef,{todos,exams,studySessions,timerSessions,checkData,extraSubjects,updatedAt:Date.now()})
+  .then(()=>setSyncStatus('ok')).catch(e=>{console.error(e);setSyncStatus('err');});
 }
 let saveTimeout2=null;
 function scheduleSave(){ clearTimeout(saveTimeout2);saveTimeout2=setTimeout(saveToFirebase,800); }
 
 setSyncStatus('loading');
-try{
-  const snap=await getDoc(docRef);
+getDoc(docRef).then(snap=>{
   if(snap.exists()){const d=snap.data();todos=d.todos||[];exams=d.exams||[];studySessions=d.studySessions||[];timerSessions=d.timerSessions||[];checkData=d.checkData||{};extraSubjects=d.extraSubjects||[];}
-  setSyncStatus('ok');
-}catch(e){console.error(e);setSyncStatus('err');}
-isLoaded=true;
+  setSyncStatus('ok');isLoaded=true;
+  renderAll();
+}).catch(e=>{console.error(e);setSyncStatus('err');isLoaded=true;renderAll();});
 
 onSnapshot(docRef,(snap)=>{
   if(!snap.exists()||!isLoaded||activeStudy)return;
@@ -544,7 +543,7 @@ function timeToMin(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
 function minToSec(m){return m*60;}
 
 // ── 네비 ──
-window.go=function(tab){
+function go(tab){
   currentTab=tab;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -555,7 +554,7 @@ window.go=function(tab){
 }
 
 // ── 입력 모드 ──
-window.setInputMode=function(mode){
+function setInputMode(mode){
   inputMode=mode;
   document.getElementById('input-timer-mode').style.display=mode==='timer'?'block':'none';
   document.getElementById('input-manual-mode').style.display=mode==='manual'?'block':'none';
@@ -564,20 +563,20 @@ window.setInputMode=function(mode){
 }
 
 // ── 할 일 ──
-window.addTodo=function(){
+function addTodo(){
   const txt=document.getElementById('todo-input').value.trim();if(!txt)return;
   todos.unshift({id:Date.now(),text:txt,done:false,prio:document.getElementById('todo-prio').value,date:document.getElementById('todo-date').value||todayStr()});
   document.getElementById('todo-input').value='';scheduleSave();renderAll();
 }
-window.toggleTodo=function(id){todos=todos.map(t=>t.id===id?{...t,done:!t.done}:t);scheduleSave();renderAll();}
-window.delTodo=function(id){todos=todos.filter(t=>t.id!==id);scheduleSave();renderAll();}
+function toggleTodo(id){todos=todos.map(t=>t.id===id?{...t,done:!t.done}:t);scheduleSave();renderAll();}
+function delTodo(id){todos=todos.filter(t=>t.id!==id);scheduleSave();renderAll();}
 function todoPct(){const t=todos.filter(t=>t.date===todayStr());return t.length?Math.round(t.filter(t=>t.done).length/t.length*100):0}
 
 // ── 공부 세션 ──
-window.selectSubject=function(key){selectedSubjectKey=key;renderSubjectPills();}
+function selectSubject(key){selectedSubjectKey=key;renderSubjectPills();}
 
 // 타이머 모드 추가
-window.addStudySession=function(){
+function addStudySession(){
   if(!selectedSubjectKey)return alert('과목을 먼저 선택해주세요');
   const task=document.getElementById('study-task-input').value.trim()||'공부';
   const sDate=document.getElementById('study-date').value||todayStr();
@@ -589,7 +588,7 @@ window.addStudySession=function(){
 }
 
 // 직접 입력 모드 추가
-window.addStudyManual=function(){
+function addStudyManual(){
   if(!selectedSubjectKey)return alert('과목을 먼저 선택해주세요');
   const task=document.getElementById('study-task-manual').value.trim()||'공부';
   const sDate=document.getElementById('study-date-manual').value||todayStr();
@@ -613,14 +612,14 @@ window.addStudyManual=function(){
   scheduleSave();renderAll();
 }
 
-window.startStudy=function(id){
+function startStudy(id){
   if(activeStudy)window.stopStudy(activeStudy);
   const s=studySessions.find(s=>s.id===id);if(!s)return;
   s.startTs=Date.now();s.active=true;activeStudy=id;
   if(timerInterval)clearInterval(timerInterval);
   timerInterval=setInterval(renderAll,1000);renderAll();
 }
-window.stopStudy=function(id){
+function stopStudy(id){
   const s=studySessions.find(s=>s.id===id);if(!s||!s.active)return;
   const now=Date.now();
   s.elapsed+=Math.floor(now-s.startTs);
@@ -629,8 +628,8 @@ window.stopStudy=function(id){
   if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
   scheduleSave();renderAll();
 }
-window.toggleStudyDone=function(id){studySessions=studySessions.map(s=>s.id===id?{...s,done:!s.done}:s);scheduleSave();renderAll();}
-window.delStudySession=function(id){
+function toggleStudyDone(id){studySessions=studySessions.map(s=>s.id===id?{...s,done:!s.done}:s);scheduleSave();renderAll();}
+function delStudySession(id){
   if(String(activeStudy)===String(id))window.stopStudy(id);
   studySessions=studySessions.filter(s=>String(s.id)!==String(id));
   scheduleSave();renderAll();
@@ -639,14 +638,14 @@ function studyElapsed(s){let e=s.elapsed;if(s.active&&s.startTs)e+=Date.now()-s.
 function studyPct(){const t=studySessions.filter(s=>s.date===todayStr());return t.length?Math.round(t.filter(s=>s.done).length/t.length*100):0;}
 
 // ── 시험 ──
-window.addExam=function(){
+function addExam(){
   const name=document.getElementById('exam-input').value.trim(),date=document.getElementById('exam-date').value;
   if(!name||!date)return;
   exams.push({id:Date.now(),name,date});exams.sort((a,b)=>a.date.localeCompare(b.date));
   document.getElementById('exam-input').value='';document.getElementById('exam-date').value='';
   scheduleSave();renderAll();
 }
-window.delExam=function(id){exams=exams.filter(e=>e.id!==id);scheduleSave();renderAll();}
+function delExam(id){exams=exams.filter(e=>e.id!==id);scheduleSave();renderAll();}
 
 // ── 강의 체크 ──
 function getCell(subKey,no){
@@ -654,14 +653,14 @@ function getCell(subKey,no){
   if(!checkData[subKey][no])checkData[subKey][no]={study:'',jet:false,note:false,jb:false,jbDiff:'',memo:false,final:false};
   return checkData[subKey][no];
 }
-window.toggleStudyCheck=function(subKey,no,val){const c=getCell(subKey,no);c.study=c.study===val?'':val;scheduleSave();window.renderCheckTable();}
-window.toggleOX=function(subKey,no,field){const c=getCell(subKey,no);c[field]=!c[field];scheduleSave();window.renderCheckTable();}
-window.toggleJbDiff=function(subKey,no,val){const c=getCell(subKey,no);if(!c.jb)c.jb=true;c.jbDiff=c.jbDiff===val?'':val;scheduleSave();window.renderCheckTable();}
+function toggleStudyCheck(subKey,no,val){const c=getCell(subKey,no);c.study=c.study===val?'':val;scheduleSave();renderCheckTable();}
+function toggleOX(subKey,no,field){const c=getCell(subKey,no);c[field]=!c[field];scheduleSave();renderCheckTable();}
+function toggleJbDiff(subKey,no,val){const c=getCell(subKey,no);if(!c.jb)c.jb=true;c.jbDiff=c.jbDiff===val?'':val;scheduleSave();renderCheckTable();}
 
 // ── 과목 추가 모달 ──
-window.openAddSubjectModal=function(){document.getElementById('add-subject-modal').classList.add('open');}
-window.closeAddSubjectModal=function(){document.getElementById('add-subject-modal').classList.remove('open');}
-window.submitNewSubject=function(){
+function openAddSubjectModal(){document.getElementById('add-subject-modal').classList.add('open');}
+function closeAddSubjectModal(){document.getElementById('add-subject-modal').classList.remove('open');}
+function submitNewSubject(){
   const name=document.getElementById('new-subject-name').value.trim();if(!name)return alert('과목 이름을 입력해주세요');
   const examDate=document.getElementById('new-subject-exam-date').value;
   const hasManager=document.getElementById('new-subject-has-manager').value==='1';
@@ -844,7 +843,7 @@ function renderWeekGrid(){
     </div>`;
   }).join('');
 }
-window.delWeekEvent=function(e,type,id){
+function delWeekEvent(e,type,id){
   e.stopPropagation();
   if(type==='study'){studySessions=studySessions.filter(s=>String(s.id)!==String(id));}
   else{todos=todos.filter(t=>String(t.id)!==String(id));}
@@ -853,19 +852,19 @@ window.delWeekEvent=function(e,type,id){
 
 // ── 드래그앤드롭 ──
 let dragType=null, dragId=null;
-window.onDragStart=function(e,type,id){
+function onDragStart(e,type,id){
   dragType=type; dragId=id;
   e.stopPropagation();
   setTimeout(()=>e.target.classList.add('dragging'),0);
 }
-window.onDragOver=function(e){
+function onDragOver(e){
   e.preventDefault();
   e.currentTarget.classList.add('drag-over');
 }
-window.onDragLeave=function(e){
+function onDragLeave(e){
   e.currentTarget.classList.remove('drag-over');
 }
-window.onDrop=function(e,targetDate){
+function onDrop(e,targetDate){
   e.preventDefault();e.stopPropagation();
   e.currentTarget.classList.remove('drag-over');
   if(!dragType||!dragId)return;
@@ -918,7 +917,7 @@ function renderCalendar(){
 }
 
 // ── 날짜 모달 ──
-window.openDayModal=function(ds){
+function openDayModal(ds){
   const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
   const[,m,d]=ds.split('-');
   document.getElementById('day-modal-title').textContent=`${parseInt(m)}월 ${parseInt(d)}일`;
@@ -954,9 +953,9 @@ window.openDayModal=function(ds){
   document.getElementById('day-modal-content').innerHTML=html;
   document.getElementById('day-modal').classList.add('open');
 }
-window.closeDayModal=function(){document.getElementById('day-modal').classList.remove('open');}
-window.toggleModalTodo=function(id,ds){todos=todos.map(t=>t.id===id?{...t,done:!t.done}:t);scheduleSave();renderAll();window.openDayModal(ds);}
-window.toggleModalStudy=function(id,ds){studySessions=studySessions.map(s=>s.id===id?{...s,done:!s.done}:s);scheduleSave();renderAll();window.openDayModal(ds);}
+function closeDayModal(){document.getElementById('day-modal').classList.remove('open');}
+function toggleModalTodo(id,ds){todos=todos.map(t=>t.id===id?{...t,done:!t.done}:t);scheduleSave();renderAll();window.openDayModal(ds);}
+function toggleModalStudy(id,ds){studySessions=studySessions.map(s=>s.id===id?{...s,done:!s.done}:s);scheduleSave();renderAll();window.openDayModal(ds);}
 
 // ── 통계 ──
 function renderStats(){
@@ -974,19 +973,19 @@ function renderStats(){
 }
 
 // ── 강의 체크표 ──
-window.switchCheckTab=function(key){
+function switchCheckTab(key){
   currentCheckTab=key;
   document.querySelectorAll('.stab').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.stab').forEach(el=>{if(el.dataset.key===key)el.classList.add('active');});
-  window.renderCheckTable();
+  renderCheckTable();
 }
-window.deleteSubject=function(key){
+function deleteSubject(key){
   const sub=getAllSubjects().find(s=>s.key===key);if(!sub)return;
   if(!confirm('"'+sub.name+'" 과목을 삭제할까요?'))return;
   extraSubjects=extraSubjects.filter(s=>s.key!==key);
   if(checkData[key])delete checkData[key];
   if(currentCheckTab===key){const rem=getAllSubjects();currentCheckTab=rem.length?rem[0].key:null;}
-  scheduleSave();renderCheckTabs();window.renderCheckTable();
+  scheduleSave();renderCheckTabs();renderCheckTable();
 }
 function renderCheckTabs(){
   const allSubs=getAllSubjects();
@@ -998,7 +997,7 @@ function renderCheckTabs(){
     return`<div class="stab ${currentCheckTab===s.key?'active':''}" data-key="${s.key}" onclick="switchCheckTab('${s.key}')" style="display:inline-flex;align-items:center">${s.name}${delBtn}</div>`;
   }).join('');
 }
-window.renderCheckTable=function(){
+function renderCheckTable(){
   const allSubs=getAllSubjects(),sd=allSubs.find(s=>s.key===currentCheckTab);
   if(!sd){document.getElementById('check-table').innerHTML='<div class="empty">과목을 선택해주세요</div>';return;}
   const rows=sd.lectures||[],key=sd.key;
@@ -1031,14 +1030,14 @@ function renderAll(){
   renderDailyStats();
   renderSubjectPills();renderStudySessions();renderSubjectTimers();renderTimeline();renderTodos();
   renderWeekGrid();renderCalendar();renderStats();
-  if(currentTab==='check'){renderCheckTabs();window.renderCheckTable();}
+  if(currentTab==='check'){renderCheckTabs();renderCheckTable();}
 }
 
 // 초기값
 document.getElementById('todo-date').value=todayStr();
 document.getElementById('study-date').value=todayStr();
 document.getElementById('study-date-manual').value=todayStr();
-renderAll();
+// renderAll은 Firebase 로드 후 호출됨
 </script>
 </body>
 </html>
