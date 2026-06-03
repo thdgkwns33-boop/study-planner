@@ -515,7 +515,7 @@ function scheduleSave(){ clearTimeout(saveTimeout2);saveTimeout2=setTimeout(save
 window.addEventListener('DOMContentLoaded', function(){
   setSyncStatus('loading');
   docRef.get().then(snap=>{
-    if(snap.exists()){const d=snap.data();todos=d.todos||[];exams=d.exams||[];studySessions=d.studySessions||[];timerSessions=d.timerSessions||[];checkData=d.checkData||{};extraSubjects=d.extraSubjects||[];}
+    if(snap.exists){const d=snap.data();todos=d.todos||[];exams=d.exams||[];studySessions=d.studySessions||[];timerSessions=d.timerSessions||[];checkData=d.checkData||{};extraSubjects=d.extraSubjects||[];}
     setSyncStatus('ok');isLoaded=true;
     document.getElementById('todo-date').value=todayStr();
     document.getElementById('study-date').value=todayStr();
@@ -530,7 +530,7 @@ window.addEventListener('DOMContentLoaded', function(){
   });
 
   docRef.onSnapshot(snap=>{
-    if(!snap.exists()||!isLoaded||activeStudy)return;
+    if(!snap.exists||!isLoaded||activeStudy)return;
     const d=snap.data();todos=d.todos||[];exams=d.exams||[];studySessions=d.studySessions||[];timerSessions=d.timerSessions||[];checkData=d.checkData||{};extraSubjects=d.extraSubjects||[];
     renderAll();setSyncStatus('ok');
   });
