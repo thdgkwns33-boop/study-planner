@@ -409,10 +409,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const docRef = db.collection("planner").doc("hajun");
-// compat API helpers
-const getDoc = (ref) => ref.get();
-const setDoc = (ref, data) => ref.set(data);
-const onSnapshot = (ref, cb) => ref.onSnapshot(cb);
+// Firebase compat — docRef.get(), docRef.set(), docRef.onSnapshot() 직접 사용
 
 // ── 동기화 상태 ──
 function setSyncStatus(s){
@@ -508,23 +505,35 @@ function getAllSubjects(){ return [...BASE_SUBJECTS,...extraSubjects.map((s,i)=>
 // ── Firebase ──
 function saveToFirebase(){
   if(!isLoaded)return;setSyncStatus('saving');
-  setDoc(docRef,{todos,exams,studySessions,timerSessions,checkData,extraSubjects,updatedAt:Date.now()})
+  docRef.set({todos,exams,studySessions,timerSessions,checkData,extraSubjects,updatedAt:Date.now()})
   .then(()=>setSyncStatus('ok')).catch(e=>{console.error(e);setSyncStatus('err');});
 }
 let saveTimeout2=null;
 function scheduleSave(){ clearTimeout(saveTimeout2);saveTimeout2=setTimeout(saveToFirebase,800); }
 
-setSyncStatus('loading');
-getDoc(docRef).then(snap=>{
-  if(snap.exists()){const d=snap.data();todos=d.todos||[];exams=d.exams||[];studySessions=d.studySessions||[];timerSessions=d.timerSessions||[];checkData=d.checkData||{};extraSubjects=d.extraSubjects||[];}
-  setSyncStatus('ok');isLoaded=true;
-  renderAll();
-}).catch(e=>{console.error(e);setSyncStatus('err');isLoaded=true;renderAll();});
+// Firebase 로드는 DOM 완성 후 실행
+window.addEventListener('DOMContentLoaded', function(){
+  setSyncStatus('loading');
+  docRef.get().then(snap=>{
+    if(snap.exists()){const d=snap.data();todos=d.todos||[];exams=d.exams||[];studySessions=d.studySessions||[];timerSessions=d.timerSessions||[];checkData=d.checkData||{};extraSubjects=d.extraSubjects||[];}
+    setSyncStatus('ok');isLoaded=true;
+    document.getElementById('todo-date').value=todayStr();
+    document.getElementById('study-date').value=todayStr();
+    document.getElementById('study-date-manual').value=todayStr();
+    renderAll();
+  }).catch(e=>{
+    console.error(e);setSyncStatus('err');isLoaded=true;
+    document.getElementById('todo-date').value=todayStr();
+    document.getElementById('study-date').value=todayStr();
+    document.getElementById('study-date-manual').value=todayStr();
+    renderAll();
+  });
 
-onSnapshot(docRef,(snap)=>{
-  if(!snap.exists()||!isLoaded||activeStudy)return;
-  const d=snap.data();todos=d.todos||[];exams=d.exams||[];studySessions=d.studySessions||[];timerSessions=d.timerSessions||[];checkData=d.checkData||{};extraSubjects=d.extraSubjects||[];
-  renderAll();setSyncStatus('ok');
+  docRef.onSnapshot(snap=>{
+    if(!snap.exists()||!isLoaded||activeStudy)return;
+    const d=snap.data();todos=d.todos||[];exams=d.exams||[];studySessions=d.studySessions||[];timerSessions=d.timerSessions||[];checkData=d.checkData||{};extraSubjects=d.extraSubjects||[];
+    renderAll();setSyncStatus('ok');
+  });
 });
 
 // ── 유틸 ──
@@ -1033,11 +1042,7 @@ function renderAll(){
   if(currentTab==='check'){renderCheckTabs();renderCheckTable();}
 }
 
-// 초기값
-document.getElementById('todo-date').value=todayStr();
-document.getElementById('study-date').value=todayStr();
-document.getElementById('study-date-manual').value=todayStr();
-// renderAll은 Firebase 로드 후 호출됨
+// 초기화는 DOMContentLoaded에서 처리
 </script>
 </body>
 </html>
