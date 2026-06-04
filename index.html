@@ -81,7 +81,7 @@ input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,select:focu
 .sub-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer;transition:all 0.15s}
 .passive-pill{background:var(--purple-light);color:var(--purple);border:1.5px solid transparent}
 .passive-pill.selected{border-color:var(--purple);background:var(--purple-light)}
-/* 주간 (수정됨) */
+/* 주간 */
 .week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:4px}
 .week-day{background:var(--surface2);border-radius:var(--radius-sm);padding:8px 6px;min-height:100px;cursor:pointer}
 .week-day.today{border:1.5px solid var(--accent);background:var(--accent-light)}
@@ -191,6 +191,23 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
 .week-day.drag-over{border:2px dashed var(--accent);background:var(--accent-light) !important}
 .week-event[draggable]{cursor:grab}.week-event[draggable]:active{cursor:grabbing;opacity:0.6}
 .week-event.dragging{opacity:0.4;border:1px dashed var(--border2)}
+/* 추가된 특이사항 입력 인풋 스타일 */
+.remark-input {
+  width: 100px;
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  background: transparent;
+  outline: none;
+  font-family: 'Noto Sans KR', sans-serif;
+  color: var(--text);
+  transition: all 0.15s;
+}
+.remark-input:focus {
+  border-color: var(--accent);
+  background: #fff;
+}
 @media(max-width:760px){
   .app{flex-direction:column}.sidebar{width:100%;height:auto;position:static;flex-direction:row;padding:10px;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border)}
   .logo,.nav-section{display:none}.nav-item{border-left:none;border-bottom:3px solid transparent;padding:7px 12px;white-space:nowrap}.nav-item.active{border-left:none;border-bottom-color:var(--accent)}
@@ -666,14 +683,16 @@ function addExam(){
 function delExam(id){exams=exams.filter(e=>e.id!==id);scheduleSave();renderAll();}
 
 // ── 강의 체크 ──
+// 복습(review)과 특이사항(remark) 데이터 필드가 추가됨
 function getCell(subKey,no){
   if(!checkData[subKey])checkData[subKey]={};
-  if(!checkData[subKey][no])checkData[subKey][no]={study:'',jet:false,note:false,jb:false,jbDiff:'',memo:false,final:false};
+  if(!checkData[subKey][no])checkData[subKey][no]={study:'',review:false,jet:false,note:false,jb:false,jbDiff:'',memo:false,final:false,remark:''};
   return checkData[subKey][no];
 }
 function toggleStudyCheck(subKey,no,val){const c=getCell(subKey,no);c.study=c.study===val?'':val;scheduleSave();renderCheckTable();}
 function toggleOX(subKey,no,field){const c=getCell(subKey,no);c[field]=!c[field];scheduleSave();renderCheckTable();}
 function toggleJbDiff(subKey,no,val){const c=getCell(subKey,no);if(!c.jb)c.jb=true;c.jbDiff=c.jbDiff===val?'':val;scheduleSave();renderCheckTable();}
+function updateRemark(subKey,no,val){const c=getCell(subKey,no);c.remark=val;scheduleSave();}
 
 // ── 과목 추가 모달 ──
 function openAddSubjectModal(){document.getElementById('add-subject-modal').classList.add('open');}
@@ -1035,13 +1054,18 @@ function renderCheckTable(){
   const total=rows.length,done2=rows.filter(r=>getCell(key,r.no).study!=='').length,pct=total?Math.round(done2/total*100):0;
   document.getElementById('check-progress').innerHTML=`<div class="prog-mini-wrap"><div class="prog-mini-bar"><div class="prog-mini-fill" style="width:${pct}%"></div></div><div class="prog-mini-txt">학습완료 ${done2}/${total} (${pct}%)</div></div>`;
   const hasM=sd.hasManager;
-  const th=`<tr><th>주차</th><th>날짜</th><th>번호</th><th style="text-align:left;min-width:160px">강의명</th><th>교수</th><th>시수</th>${hasM?'<th>정리담당</th>':''}<th>학습여부</th><th>제트정리</th><th>정리본</th><th>족보중요<br><span style="font-size:9px;font-weight:400">(O+난이도)</span></th><th>암기확인</th><th>최종점검</th></tr>`;
+  // 테이블 헤더에 '복습'과 '특이사항' 열 추가
+  const th=`<tr><th>주차</th><th>날짜</th><th>번호</th><th style="text-align:left;min-width:160px">강의명</th><th>교수</th><th>시수</th>${hasM?'<th>정리담당</th>':''}<th>학습여부</th><th>복습</th><th>제트정리</th><th>정리본</th><th>족보중요<br><span style="font-size:9px;font-weight:400">(O+난이도)</span></th><th>암기확인</th><th>최종점검</th><th>특이사항</th></tr>`;
   const tbody=rows.map(r=>{
     const c=getCell(key,r.no);
     const studyBtns=['강의록','필스','필스제트'].map(v=>`<button class="sbtn ${c.study===v?'sel-'+v:''}" onclick="toggleStudyCheck('${key}',${r.no},'${v}')">${v}</button>`).join('');
     const diffBtns=['상','중','하'].map(v=>`<button class="diff-btn ${c.jbDiff===v?'sel-'+v:''}" onclick="toggleJbDiff('${key}',${r.no},'${v}')">${v}</button>`).join('');
     const jbCell=`<div class="jb-cell"><button class="ox-btn ${c.jb?'o':''}" onclick="toggleOX('${key}',${r.no},'jb')">${c.jb?'O':'—'}</button>${c.jb?`<div style="display:flex;gap:2px">${diffBtns}</div>`:''}</div>`;
-    return`<tr class="${r.imp?'imp':''}"><td class="week-cell">${r.week}</td><td class="week-cell">${r.date||''}</td><td style="color:var(--text3);font-size:11px;font-family:'DM Mono',monospace">${r.no}</td><td class="title-cell">${r.title}</td><td style="white-space:nowrap;font-size:12px">${r.prof}</td><td style="font-size:12px">${r.hrs}</td>${hasM?`<td><span style="font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:999px;color:var(--text2)">${r.manager||''}</span></td>`:''}<td><div class="study-btn-group">${studyBtns}</div></td><td><button class="ox-btn ${c.jet?'o':''}" onclick="toggleOX('${key}',${r.no},'jet')">${c.jet?'O':'—'}</button></td><td><button class="ox-btn ${c.note?'o':''}" onclick="toggleOX('${key}',${r.no},'note')">${c.note?'O':'—'}</button></td><td>${jbCell}</td><td><button class="ox-btn ${c.memo?'o':''}" onclick="toggleOX('${key}',${r.no},'memo')">${c.memo?'O':'—'}</button></td><td><button class="ox-btn ${c.final?'o':''}" onclick="toggleOX('${key}',${r.no},'final')">${c.final?'O':'—'}</button></td></tr>`;
+    // 새로 추가된 버튼과 텍스트 입력창
+    const reviewBtn = `<button class="ox-btn ${c.review?'o':''}" onclick="toggleOX('${key}',${r.no},'review')">${c.review?'O':'—'}</button>`;
+    const remarkInput = `<input type="text" class="remark-input" value="${c.remark||''}" onchange="updateRemark('${key}',${r.no},this.value)" placeholder="...">`;
+    
+    return`<tr class="${r.imp?'imp':''}"><td class="week-cell">${r.week}</td><td class="week-cell">${r.date||''}</td><td style="color:var(--text3);font-size:11px;font-family:'DM Mono',monospace">${r.no}</td><td class="title-cell">${r.title}</td><td style="white-space:nowrap;font-size:12px">${r.prof}</td><td style="font-size:12px">${r.hrs}</td>${hasM?`<td><span style="font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:999px;color:var(--text2)">${r.manager||''}</span></td>`:''}<td><div class="study-btn-group">${studyBtns}</div></td><td>${reviewBtn}</td><td><button class="ox-btn ${c.jet?'o':''}" onclick="toggleOX('${key}',${r.no},'jet')">${c.jet?'O':'—'}</button></td><td><button class="ox-btn ${c.note?'o':''}" onclick="toggleOX('${key}',${r.no},'note')">${c.note?'O':'—'}</button></td><td>${jbCell}</td><td><button class="ox-btn ${c.memo?'o':''}" onclick="toggleOX('${key}',${r.no},'memo')">${c.memo?'O':'—'}</button></td><td><button class="ox-btn ${c.final?'o':''}" onclick="toggleOX('${key}',${r.no},'final')">${c.final?'O':'—'}</button></td><td>${remarkInput}</td></tr>`;
   }).join('');
   document.getElementById('check-table').innerHTML=`<div class="lecture-table-wrap"><table class="lt"><thead>${th}</thead><tbody>${tbody}</tbody></table></div>`;
 }
