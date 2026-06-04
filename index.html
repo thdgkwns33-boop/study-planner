@@ -178,7 +178,6 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
 .page-title{font-size:19px;font-weight:700;margin-bottom:4px;letter-spacing:-0.5px}
 .page-today-date{font-size:13px;color:var(--text2);margin-bottom:18px;font-weight:500}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-/* 일간 플랜 타임블록 */
 .daily-timeline{display:flex;flex-direction:column;gap:0}
 .dt-row{display:flex;align-items:stretch;min-height:40px;border-bottom:1px solid var(--border)}
 .dt-row:last-child{border-bottom:none}
@@ -191,23 +190,9 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
 .week-day.drag-over{border:2px dashed var(--accent);background:var(--accent-light) !important}
 .week-event[draggable]{cursor:grab}.week-event[draggable]:active{cursor:grabbing;opacity:0.6}
 .week-event.dragging{opacity:0.4;border:1px dashed var(--border2)}
-/* 추가된 특이사항 입력 인풋 스타일 */
-.remark-input {
-  width: 100px;
-  padding: 4px 6px;
-  font-size: 11px;
-  border: 1px solid var(--border2);
-  border-radius: 4px;
-  background: transparent;
-  outline: none;
-  font-family: 'Noto Sans KR', sans-serif;
-  color: var(--text);
-  transition: all 0.15s;
-}
-.remark-input:focus {
-  border-color: var(--accent);
-  background: #fff;
-}
+.remark-input {width: 100px;padding: 4px 6px;font-size: 11px;border: 1px solid var(--border2);border-radius: 4px;background: transparent;outline: none;font-family: 'Noto Sans KR', sans-serif;color: var(--text);transition: all 0.15s;}
+.remark-input:focus {border-color: var(--accent);background: #fff;}
+.section-badge {font-size:11px; font-weight:700; padding:2px 8px; border-radius:4px; display:inline-block; margin-bottom:6px; font-family:'DM Mono',monospace;}
 @media(max-width:760px){
   .app{flex-direction:column}.sidebar{width:100%;height:auto;position:static;flex-direction:row;padding:10px;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border)}
   .logo,.nav-section{display:none}.nav-item{border-left:none;border-bottom:3px solid transparent;padding:7px 12px;white-space:nowrap}.nav-item.active{border-left:none;border-bottom-color:var(--accent)}
@@ -262,12 +247,21 @@ function checkAppUnlock(){
       <div class="two-col">
         <div>
           <div class="card">
-            <div class="card-title">📚 오늘의 공부</div>
-            <div class="prog-wrap"><div id="study-prog-fill" class="prog-fill" style="width:0%"></div></div>
-            <div id="study-session-list"></div>
+            <div class="card-title" style="margin-bottom:8px">📚 공부 기록</div>
+            
+            <div class="section-badge" style="background:var(--surface2); color:var(--text3);">어제 (<span id="lbl-yest"></span>)</div>
+            <div id="study-list-yesterday" style="margin-bottom: 14px; opacity: 0.85;"></div>
+            
+            <div class="section-badge" style="background:var(--accent-light); color:var(--accent);">오늘 (<span id="lbl-today"></span>)</div>
+            <div class="prog-wrap" style="margin-top:0"><div id="study-prog-fill" class="prog-fill" style="width:0%"></div></div>
+            <div id="study-session-list" style="margin-bottom: 14px;"></div>
+            
+            <div class="section-badge" style="background:var(--surface2); color:var(--text3);">내일 (<span id="lbl-tom"></span>)</div>
+            <div id="study-list-tomorrow" style="margin-bottom: 14px; opacity: 0.85;"></div>
+            
             <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
               <div style="margin-bottom:8px">
-                <div style="font-size:10px;color:var(--text3);margin-bottom:5px;font-weight:500">과목 선택</div>
+                <div style="font-size:10px;color:var(--text3);margin-bottom:5px;font-weight:500">선택한 날짜에 기록 추가하기</div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap" id="subject-pill-selector"></div>
                 <div style="margin-top:6px">
                   <div id="passive-pill-wrap" style="display:flex;gap:6px;flex-wrap:wrap"></div>
@@ -279,14 +273,14 @@ function checkAppUnlock(){
               </div>
               <div id="input-timer-mode">
                 <div class="input-row">
-                  <input type="date" id="study-date">
+                  <input type="date" id="study-date" title="기록할 날짜를 선택하세요">
                   <input type="text" id="study-task-input" placeholder="예: 1~5강 정리, 족보 풀기..." onkeydown="if(event.key==='Enter')addStudySession()">
                   <button class="btn btn-primary" onclick="addStudySession()">추가</button>
                 </div>
               </div>
               <div id="input-manual-mode" style="display:none">
                 <div class="input-row" style="align-items:center">
-                  <input type="date" id="study-date-manual">
+                  <input type="date" id="study-date-manual" title="기록할 날짜를 선택하세요">
                   <input type="text" id="study-task-manual" placeholder="한 일 내용..." style="flex:2">
                 </div>
                 <div class="input-row" style="align-items:center;margin-top:6px">
@@ -313,11 +307,15 @@ function checkAppUnlock(){
         </div>
         <div>
           <div class="card" style="padding:14px 16px">
-            <div class="card-title">🕐 오늘의 타임라인</div>
+            <div class="card-title" id="tl-title-today" style="margin-bottom:8px">🕐 오늘의 타임라인</div>
             <div class="tl-outer" id="timeline-wrap"></div>
           </div>
+          <div class="card" style="padding:14px 16px">
+            <div class="card-title" id="tl-title-yesterday" style="margin-bottom:8px">🕐 어제의 타임라인</div>
+            <div class="tl-outer" id="timeline-wrap-yesterday"></div>
+          </div>
           <div class="card">
-            <div class="card-title">⏱ 과목별 공부 시간</div>
+            <div class="card-title">⏱ 과목별 공부 시간 (오늘 기준)</div>
             <div id="subject-timer-list"></div>
           </div>
         </div>
@@ -536,11 +534,17 @@ window.addEventListener('DOMContentLoaded', function(){
   });
 });
 
-// ── 유틸 ──
+// ── 유틸 (새벽 5시 기준 논리적 하루 계산) ──
 function todayStr(){
-  const now=new Date();
-  const offset=now.getTimezoneOffset()*60000;
-  return (new Date(now.getTime()-offset)).toISOString().slice(0,10);
+  const now = new Date();
+  now.setHours(now.getHours() - 5); // 5시간을 빼서 00~04시까지는 이전 날짜로 인식하게 만듦
+  const offset = now.getTimezoneOffset() * 60000;
+  return (new Date(now.getTime() - offset)).toISOString().slice(0, 10);
+}
+function offsetDateStr(base, days) {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 function diffDays(d){return Math.ceil((new Date(d)-new Date(todayStr()))/86400e3)}
 function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`:`${m}:${String(sc).padStart(2,'0')}`}
@@ -613,20 +617,40 @@ function addStudyManual(){
   const startT=document.getElementById('study-start-time').value;
   const endT=document.getElementById('study-end-time').value;
   if(!startT||!endT)return alert('시작/종료 시간을 모두 입력해주세요');
+  
   const startMin=timeToMin(startT),endMin=timeToMin(endT);
-  let diffMin=endMin-startMin;
-  if(diffMin<0)diffMin+=24*60; 
-  const elapsed=minToSec(diffMin);
+  
+  let physicalStart = new Date(sDate+'T'+startT+':00');
+  let physicalEnd = new Date(sDate+'T'+endT+':00');
+  
+  // 새벽 00~04시 입력 시 물리적으로 다음 날로 인식하도록 보정
+  if(startMin < 5*60) physicalStart.setDate(physicalStart.getDate() + 1);
+  if(endMin < 5*60) physicalEnd.setDate(physicalEnd.getDate() + 1);
+  
+  // 종료시간이 시작시간보다 빠르면 (밤 11시 ~ 새벽 1시) 보정
+  if(physicalEnd < physicalStart) physicalEnd.setDate(physicalEnd.getDate() + 1);
+  
+  const diffMin = (physicalEnd.getTime() - physicalStart.getTime()) / 60000;
+  const elapsed = diffMin * 60;
+  
   const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
   const sub=allSubs.find(s=>s.key===selectedSubjectKey);
   const isPassive=PASSIVE_TYPES.some(p=>p.key===selectedSubjectKey);
   const id=Date.now();
   
-  const baseDate=new Date(sDate+'T'+startT+':00');
-  const endDate=new Date(sDate+'T'+endT+':00');
-  studySessions.push({id,subjectKey:selectedSubjectKey,subjectName:sub.name,task,date:sDate,startTs:baseDate.getTime(),endTs:endDate.getTime(),elapsed:elapsed*1000,done:false,active:false,passive:isPassive,manualStart:startT,manualEnd:endT});
-  // timerSession에 studySessionId 포함 저장 (연동 삭제를 위해)
-  timerSessions.push({id:id+1, studySessionId: id, subjectKey:selectedSubjectKey, startTs:baseDate.getTime(), endTs:endDate.getTime(), elapsed, date:sDate});
+  studySessions.push({
+    id, subjectKey:selectedSubjectKey, subjectName:sub.name, task, 
+    date:sDate, // 선택한 논리적 날짜에 저장
+    startTs:physicalStart.getTime(), endTs:physicalEnd.getTime(), 
+    elapsed:elapsed*1000, done:false, active:false, passive:isPassive, 
+    manualStart:startT, manualEnd:endT
+  });
+  timerSessions.push({
+    id:id+1, studySessionId: id, subjectKey:selectedSubjectKey, 
+    startTs:physicalStart.getTime(), endTs:physicalEnd.getTime(), 
+    elapsed, date:sDate
+  });
+  
   document.getElementById('study-task-manual').value='';
   scheduleSave();renderAll();
 }
@@ -643,8 +667,7 @@ function stopStudy(id){
   const s=studySessions.find(s=>s.id===id);if(!s||!s.active)return;
   const now=Date.now();
   s.elapsed+=Math.floor(now-s.startTs);
-  // 연동 삭제를 위해 studySessionId 추가
-  timerSessions.push({id:Date.now(), studySessionId: s.id, subjectKey:s.subjectKey, startTs:s.startTs, endTs:now, elapsed:Math.floor((now-s.startTs)/1000), date:todayStr()});
+  timerSessions.push({id:Date.now(), studySessionId: s.id, subjectKey:s.subjectKey, startTs:s.startTs, endTs:now, elapsed:Math.floor((now-s.startTs)/1000), date:s.date});
   s.active=false;s.startTs=null;activeStudy=null;
   if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
   scheduleSave();renderAll();
@@ -655,12 +678,10 @@ function toggleStudyDone(id){studySessions=studySessions.map(s=>s.id===id?{...s,
 function delStudySession(id){
   if(String(activeStudy)===String(id))window.stopStudy(id);
   studySessions=studySessions.filter(s=>String(s.id)!==String(id));
-  // 해당 과목 기록 삭제 시 누적된 시간(timerSessions)도 함께 지워지도록 처리!
   timerSessions = timerSessions.filter(ts => String(ts.studySessionId) !== String(id) && String(ts.id) !== String(parseInt(id)+1));
   scheduleSave();renderAll();
 }
 
-// 개별 타이머 기록 직접 삭제 함수 (타임라인에서 사용)
 function delTimerSession(id){
   if(confirm("해당 시간대의 공부 기록을 삭제하시겠습니까?\n(누적 통계 시간에서도 제외됩니다)")){
     timerSessions = timerSessions.filter(ts => String(ts.id) !== String(id));
@@ -683,7 +704,6 @@ function addExam(){
 function delExam(id){exams=exams.filter(e=>e.id!==id);scheduleSave();renderAll();}
 
 // ── 강의 체크 ──
-// 복습(review)과 특이사항(remark) 데이터 필드가 추가됨
 function getCell(subKey,no){
   if(!checkData[subKey])checkData[subKey]={};
   if(!checkData[subKey][no])checkData[subKey][no]={study:'',review:false,jet:false,note:false,jb:false,jbDiff:'',memo:false,final:false,remark:''};
@@ -719,40 +739,66 @@ function submitNewSubject(){
 }
 
 // ── 타임라인 ──
-function renderTimeline(){
-  const hours=[];for(let h=5;h<=24;h++)hours.push(h);for(let h=1;h<=4;h++)hours.push(h);
-  const todayTs=timerSessions.filter(s=>s.date===todayStr());
-  const activeSession=activeStudy?studySessions.find(s=>s.id===activeStudy):null;
-  const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
-  let rows='';
-  hours.forEach(h=>{
-    const hStr=String(h===24?0:h).padStart(2,'0');
-    let totalHtml='';
-    todayTs.forEach(s=>{
-      const sh=new Date(s.startTs).getHours(),eh=new Date(s.endTs).getHours();
-      const sm2=new Date(s.startTs).getMinutes()+new Date(s.startTs).getSeconds()/60;
-      const em2=new Date(s.endTs).getMinutes()+new Date(s.endTs).getSeconds()/60;
-      if(sh!==h&&eh!==h&&!(sh<h&&eh>h))return;
-      const sub=allSubs.find(sb=>sb.key===s.subjectKey);
-      const color=sub?sub.color:'#888';
-      const left=sh===h?sm2/60*100:0;const right=eh===h?em2/60*100:100;
-      
-      // 개별 시간표 기록 삭제를 위해 onclick 이벤트 매핑
-      totalHtml+=`<div class="tl-block" style="left:${left.toFixed(1)}%;width:${Math.max(right-left,1).toFixed(1)}%;background:${color}" title="${sub?sub.name:''} (클릭하여 기록 삭제)" onclick="delTimerSession(${s.id})"></div>`;
+function drawTimeline(targetDateStr, containerId, titleId, titlePrefix) {
+  const tDate = new Date(targetDateStr);
+  const y = String(tDate.getFullYear()).slice(2);
+  const m = String(tDate.getMonth()+1).padStart(2,'0');
+  const d = String(tDate.getDate()).padStart(2,'0');
+  const yymmdd = `${y}${m}${d}`;
+  
+  const titleEl = document.getElementById(titleId);
+  if(titleEl) titleEl.innerHTML = `🕐 ${titlePrefix} <span style="font-size:12px;color:var(--text3);margin-left:6px;font-family:'DM Mono',monospace">${yymmdd}</span>`;
+
+  const hours = [];
+  for(let i=0; i<24; i++) hours.push((5+i)%24);
+
+  // 대상 날짜의 물리적 시작 시간 (05:00)부터 다음 날 05:00까지
+  const pStart = new Date(targetDateStr + 'T05:00:00').getTime();
+  const pEnd = pStart + 24 * 3600 * 1000;
+  const allSubs = [...getAllSubjects(), ...PASSIVE_TYPES];
+
+  const relevant = timerSessions.filter(s => s.startTs < pEnd && s.endTs > pStart);
+
+  let rows = '';
+  hours.forEach((h, i) => {
+    const hStr = String(h).padStart(2,'0');
+    const slotStart = pStart + i * 3600 * 1000;
+    const slotEnd = slotStart + 3600 * 1000;
+    let totalHtml = '';
+
+    relevant.forEach(s => {
+      const overlapS = Math.max(s.startTs, slotStart);
+      const overlapE = Math.min(s.endTs, slotEnd);
+      if (overlapS < overlapE) {
+        const sub = allSubs.find(sb => sb.key === s.subjectKey);
+        const color = sub ? sub.color : '#888';
+        const left = ((overlapS - slotStart) / 3600000) * 100;
+        const width = ((overlapE - overlapS) / 3600000) * 100;
+        totalHtml += `<div class="tl-block" style="left:${left.toFixed(1)}%;width:${Math.max(width,1).toFixed(1)}%;background:${color}" title="${sub?sub.name:''} (클릭하여 삭제)" onclick="delTimerSession(${s.id})"></div>`;
+      }
     });
-    
-    if(activeSession&&new Date().getHours()===h){
-      const sm3=new Date(activeSession.startTs);
-      const left=sm3.getHours()===h?(sm3.getMinutes()+sm3.getSeconds()/60)/60*100:0;
-      const now=new Date();const right=(now.getMinutes()+now.getSeconds()/60)/60*100;
-      const sub=allSubs.find(sb=>sb.key===activeSession.subjectKey);
-      const color=sub?sub.color:'#888';
-      totalHtml+=`<div class="tl-block" style="left:${left.toFixed(1)}%;width:${Math.max(right-left,1).toFixed(1)}%;background:${color};opacity:0.45;border:1.5px dashed ${color}" title="진행중..."></div>`;
+
+    if (activeStudy) {
+      const activeS = studySessions.find(ss => ss.id === activeStudy);
+      if (activeS) {
+        const now = Date.now();
+        const overlapS = Math.max(activeS.startTs, slotStart);
+        const overlapE = Math.min(now, slotEnd);
+        if (overlapS < overlapE && overlapS < now) {
+          const sub = allSubs.find(sb => sb.key === activeS.subjectKey);
+          const color = sub ? sub.color : '#888';
+          const left = ((overlapS - slotStart) / 3600000) * 100;
+          const width = ((overlapE - overlapS) / 3600000) * 100;
+          totalHtml += `<div class="tl-block" style="left:${left.toFixed(1)}%;width:${Math.max(width,1).toFixed(1)}%;background:${color};opacity:0.45;border:1.5px dashed ${color}"></div>`;
+        }
+      }
     }
-    
-    rows+=`<div class="tl-row"><div class="tl-label">${hStr}</div><div class="tl-area">${totalHtml}</div></div>`;
+
+    rows += `<div class="tl-row"><div class="tl-label">${hStr}</div><div class="tl-area">${totalHtml}</div></div>`;
   });
-  document.getElementById('timeline-wrap').innerHTML=`<div class="tl-header-row"><div class="tl-header-cell" style="border-right:1px solid #dde">Time</div><div class="tl-header-cell">Total Time</div></div>${rows}`;
+
+  const wrap = document.getElementById(containerId);
+  if(wrap) wrap.innerHTML = `<div class="tl-header-row"><div class="tl-header-cell" style="border-right:1px solid #dde">Time</div><div class="tl-header-cell">Total Time</div></div>${rows}`;
 }
 
 // ── 과목 pill ──
@@ -769,30 +815,51 @@ function renderSubjectPills(){
     </div>`).join('');
 }
 
-// ── 공부 세션 리스트 ──
-function renderStudySessions(){
-  const todaySS=studySessions.filter(s=>s.date===todayStr());
-  const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
-  document.getElementById('study-prog-fill').style.width=studyPct()+'%';
-  const el=document.getElementById('study-session-list');
-  if(!todaySS.length){el.innerHTML='<div class="empty">과목을 선택하고 공부 항목을 추가해보세요</div>';return;}
-  el.innerHTML=todaySS.map(s=>{
-    const sub=allSubs.find(sb=>sb.key===s.subjectKey),color=sub?sub.color:'#888';
-    const elapsed=studyElapsed(s);
-    const timeLabel=s.manualStart?`<span class="session-time" style="color:${color};font-size:10px">${s.manualStart}~${s.manualEnd}</span>`:'';
-    const passiveTag=s.passive?`<span class="passive-tag">수업</span>`:'';
-    return`<div class="study-session-item">
-      <input type="checkbox" class="todo-cb" ${s.done?'checked':''} onchange="toggleStudyDone(${s.id})">
+// ── 어제/오늘/내일 공부 세션 렌더링 공통 함수 ──
+function renderSessionList(targetDateStr, containerId, isToday) {
+  const sessions = studySessions.filter(s => s.date === targetDateStr);
+  const el = document.getElementById(containerId);
+  const allSubs = [...getAllSubjects(), ...PASSIVE_TYPES];
+  
+  if(!sessions.length) {
+    el.innerHTML = `<div class="empty">${isToday ? '과목을 선택하고 공부 항목을 추가해보세요' : '기록이 없습니다.'}</div>`;
+    return;
+  }
+  
+  el.innerHTML = sessions.map(s => {
+    const sub = allSubs.find(sb => sb.key === s.subjectKey);
+    const color = sub ? sub.color : '#888';
+    const elapsed = studyElapsed(s);
+    const timeLabel = s.manualStart ? `<span class="session-time" style="color:${color};font-size:10px">${s.manualStart}~${s.manualEnd}</span>` : '';
+    const passiveTag = s.passive ? `<span class="passive-tag">수업</span>` : '';
+    return `<div class="study-session-item">
+      <input type="checkbox" class="todo-cb" ${s.done ? 'checked' : ''} onchange="toggleStudyDone(${s.id})">
       <div class="session-dot" style="background:${color}"></div>
       <div class="session-name" style="color:${color}">${s.subjectName}</div>
       ${passiveTag}
-      <div class="session-task${s.done?' todo-text done':''}">${s.task}</div>
+      <div class="session-task${s.done ? ' todo-text done' : ''}">${s.task}</div>
       ${timeLabel}
-      <div class="session-time${s.active?' active':''}">${s.manualStart?fmtSec(elapsed):elapsed>0?fmtSec(elapsed):''}</div>
-      ${!s.manualStart?(s.active?`<button class="btn btn-danger btn-sm" onclick="stopStudy(${s.id})">■ 중지</button>`:`<button class="btn btn-success btn-sm" onclick="startStudy(${s.id})">▶ 시작</button>`):''}
+      <div class="session-time${s.active ? ' active' : ''}">${s.manualStart ? fmtSec(elapsed) : elapsed > 0 ? fmtSec(elapsed) : ''}</div>
+      ${!s.manualStart ? (s.active ? `<button class="btn btn-danger btn-sm" onclick="stopStudy(${s.id})">■ 중지</button>` : `<button class="btn btn-success btn-sm" onclick="startStudy(${s.id})">▶ 시작</button>`) : ''}
       <button class="btn btn-sm" onclick="delStudySession(${s.id})">×</button>
     </div>`;
   }).join('');
+}
+
+function renderStudySessions(){
+  const today = todayStr();
+  const yest = offsetDateStr(today, -1);
+  const tom = offsetDateStr(today, 1);
+  
+  document.getElementById('lbl-yest').textContent = yest.slice(5).replace('-','/');
+  document.getElementById('lbl-today').textContent = today.slice(5).replace('-','/');
+  document.getElementById('lbl-tom').textContent = tom.slice(5).replace('-','/');
+  
+  document.getElementById('study-prog-fill').style.width = studyPct() + '%';
+  
+  renderSessionList(yest, 'study-list-yesterday', false);
+  renderSessionList(today, 'study-session-list', true);
+  renderSessionList(tom, 'study-list-tomorrow', false);
 }
 
 // ── 과목 타이머 ──
@@ -884,7 +951,6 @@ function renderSingleWeekGrid(offsetWeeks, targetId){
 }
 
 function renderWeekGrid(){
-  // 지난주, 이번 주, 다음 주를 각각 그립니다.
   renderSingleWeekGrid(-1, 'week-grid-prev');
   renderSingleWeekGrid(0, 'week-grid');
   renderSingleWeekGrid(1, 'week-grid-next');
@@ -1054,14 +1120,12 @@ function renderCheckTable(){
   const total=rows.length,done2=rows.filter(r=>getCell(key,r.no).study!=='').length,pct=total?Math.round(done2/total*100):0;
   document.getElementById('check-progress').innerHTML=`<div class="prog-mini-wrap"><div class="prog-mini-bar"><div class="prog-mini-fill" style="width:${pct}%"></div></div><div class="prog-mini-txt">학습완료 ${done2}/${total} (${pct}%)</div></div>`;
   const hasM=sd.hasManager;
-  // 테이블 헤더에 '복습'과 '특이사항' 열 추가
   const th=`<tr><th>주차</th><th>날짜</th><th>번호</th><th style="text-align:left;min-width:160px">강의명</th><th>교수</th><th>시수</th>${hasM?'<th>정리담당</th>':''}<th>학습여부</th><th>복습</th><th>제트정리</th><th>정리본</th><th>족보중요<br><span style="font-size:9px;font-weight:400">(O+난이도)</span></th><th>암기확인</th><th>최종점검</th><th>특이사항</th></tr>`;
   const tbody=rows.map(r=>{
     const c=getCell(key,r.no);
     const studyBtns=['강의록','필스','필스제트'].map(v=>`<button class="sbtn ${c.study===v?'sel-'+v:''}" onclick="toggleStudyCheck('${key}',${r.no},'${v}')">${v}</button>`).join('');
     const diffBtns=['상','중','하'].map(v=>`<button class="diff-btn ${c.jbDiff===v?'sel-'+v:''}" onclick="toggleJbDiff('${key}',${r.no},'${v}')">${v}</button>`).join('');
     const jbCell=`<div class="jb-cell"><button class="ox-btn ${c.jb?'o':''}" onclick="toggleOX('${key}',${r.no},'jb')">${c.jb?'O':'—'}</button>${c.jb?`<div style="display:flex;gap:2px">${diffBtns}</div>`:''}</div>`;
-    // 새로 추가된 버튼과 텍스트 입력창
     const reviewBtn = `<button class="ox-btn ${c.review?'o':''}" onclick="toggleOX('${key}',${r.no},'review')">${c.review?'O':'—'}</button>`;
     const remarkInput = `<input type="text" class="remark-input" value="${c.remark||''}" onchange="updateRemark('${key}',${r.no},this.value)" placeholder="...">`;
     
@@ -1070,20 +1134,27 @@ function renderCheckTable(){
   document.getElementById('check-table').innerHTML=`<div class="lecture-table-wrap"><table class="lt"><thead>${th}</thead><tbody>${tbody}</tbody></table></div>`;
 }
 
-// ── 날짜 헤더 ──
+// ── 날짜 헤더 및 타임라인 렌더링 세팅 ──
 function renderTopDateHeader(){
   const days=['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
-  const now=new Date(todayStr());
+  const now=new Date(); // 헤더는 실제 오늘 날짜 표기
   const fmt=`${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 ${days[now.getDay()]}`;
   ['header-today-text-daily','header-today-text'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=fmt;});
 }
 
-// ── renderAll ──
 function renderAll(){
   renderTopDateHeader();
   buildDday('dday-banner-daily');buildDday('dday-banner');
   renderDailyStats();
-  renderSubjectPills();renderStudySessions();renderSubjectTimers();renderTimeline();renderTodos();
+  renderSubjectPills();
+  renderStudySessions();
+  renderSubjectTimers();
+  
+  // 오늘과 어제의 타임라인 모두 렌더링
+  drawTimeline(todayStr(), 'timeline-wrap', 'tl-title-today', '오늘의 타임라인');
+  drawTimeline(offsetDateStr(todayStr(), -1), 'timeline-wrap-yesterday', 'tl-title-yesterday', '어제의 타임라인');
+  
+  renderTodos();
   renderWeekGrid();renderCalendar();renderStats();
   if(currentTab==='check'){renderCheckTabs();renderCheckTable();}
 }
