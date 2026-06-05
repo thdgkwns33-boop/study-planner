@@ -81,8 +81,8 @@ input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,select:focu
 .sub-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer;transition:all 0.15s}
 .passive-pill{background:var(--purple-light);color:var(--purple);border:1.5px solid transparent}
 .passive-pill.selected{border-color:var(--purple);background:var(--purple-light)}
-/* 주간 */
-.week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:4px}
+/* 주간 2x4 (8칸) 으로 변경 */
+.week-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-bottom:4px}
 .week-day{background:var(--surface2);border-radius:var(--radius-sm);padding:8px 6px;min-height:100px;cursor:pointer}
 .week-day.today{border:1.5px solid var(--accent);background:var(--accent-light)}
 .week-day-head{font-size:10px;font-weight:500;color:var(--text3);margin-bottom:4px;text-align:center}
@@ -196,7 +196,7 @@ textarea{width:100%;height:160px;resize:vertical;font-size:12px;font-family:'DM 
 @media(max-width:760px){
   .app{flex-direction:column}.sidebar{width:100%;height:auto;position:static;flex-direction:row;padding:10px;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border)}
   .logo,.nav-section{display:none}.nav-item{border-left:none;border-bottom:3px solid transparent;padding:7px 12px;white-space:nowrap}.nav-item.active{border-left:none;border-bottom-color:var(--accent)}
-  .main{padding:14px}.stat-grid{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}.week-grid{grid-template-columns:repeat(4,1fr)}
+  .main{padding:14px}.stat-grid{grid-template-columns:repeat(2,1fr)}.two-col{grid-template-columns:1fr}.week-grid{grid-template-columns:repeat(2,1fr)}
 }
 </style>
 </head>
@@ -537,7 +537,7 @@ window.addEventListener('DOMContentLoaded', function(){
 // ── 유틸 (새벽 5시 기준 논리적 하루 계산) ──
 function todayStr(){
   const now = new Date();
-  now.setHours(now.getHours() - 5); // 5시간을 빼서 00~04시까지는 이전 날짜로 인식하게 만듦
+  now.setHours(now.getHours() - 5); 
   const offset = now.getTimezoneOffset() * 60000;
   return (new Date(now.getTime() - offset)).toISOString().slice(0, 10);
 }
@@ -550,9 +550,17 @@ function diffDays(d){return Math.ceil((new Date(d)-new Date(todayStr()))/86400e3
 function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`:`${m}:${String(sc).padStart(2,'0')}`}
 function fmtH(s){return(s/3600).toFixed(1)+'h'}
 function mDate(d){const[,m,dd]=d.split('-');return`${parseInt(m)}/${parseInt(dd)}`}
-function weekStartDate(){const d=new Date(todayStr());d.setDate(d.getDate()-d.getDay());d.setHours(0,0,0,0);return d}
 
-// 주간 일자 구하기 (offsetWeeks: -1이면 지난주, 0이면 이번주, 1이면 다음주)
+// 이번 주의 월요일 날짜 계산으로 수정
+function weekStartDate(){
+  const d=new Date(todayStr());
+  const day=d.getDay();
+  const diff=d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
 function getWeekDates(offsetWeeks = 0){
   const s=weekStartDate();
   s.setDate(s.getDate() + (offsetWeeks * 7));
@@ -623,11 +631,8 @@ function addStudyManual(){
   let physicalStart = new Date(sDate+'T'+startT+':00');
   let physicalEnd = new Date(sDate+'T'+endT+':00');
   
-  // 새벽 00~04시 입력 시 물리적으로 다음 날로 인식하도록 보정
   if(startMin < 5*60) physicalStart.setDate(physicalStart.getDate() + 1);
   if(endMin < 5*60) physicalEnd.setDate(physicalEnd.getDate() + 1);
-  
-  // 종료시간이 시작시간보다 빠르면 (밤 11시 ~ 새벽 1시) 보정
   if(physicalEnd < physicalStart) physicalEnd.setDate(physicalEnd.getDate() + 1);
   
   const diffMin = (physicalEnd.getTime() - physicalStart.getTime()) / 60000;
@@ -640,7 +645,7 @@ function addStudyManual(){
   
   studySessions.push({
     id, subjectKey:selectedSubjectKey, subjectName:sub.name, task, 
-    date:sDate, // 선택한 논리적 날짜에 저장
+    date:sDate,
     startTs:physicalStart.getTime(), endTs:physicalEnd.getTime(), 
     elapsed:elapsed*1000, done:false, active:false, passive:isPassive, 
     manualStart:startT, manualEnd:endT
@@ -752,7 +757,6 @@ function drawTimeline(targetDateStr, containerId, titleId, titlePrefix) {
   const hours = [];
   for(let i=0; i<24; i++) hours.push((5+i)%24);
 
-  // 대상 날짜의 물리적 시작 시간 (05:00)부터 다음 날 05:00까지
   const pStart = new Date(targetDateStr + 'T05:00:00').getTime();
   const pEnd = pStart + 24 * 3600 * 1000;
   const allSubs = [...getAllSubjects(), ...PASSIVE_TYPES];
@@ -808,14 +812,12 @@ function renderSubjectPills(){
     <div class="sub-pill" style="background:${s.key===selectedSubjectKey?s.color+'22':'var(--surface2)'};color:${s.key===selectedSubjectKey?s.color:'var(--text2)'};border:1.5px solid ${s.key===selectedSubjectKey?s.color:'transparent'}" onclick="selectSubject('${s.key}')">
       <span style="width:7px;height:7px;border-radius:50%;background:${s.color};display:inline-block"></span>${s.name}
     </div>`).join('');
-  // passive 수업 pill
   document.getElementById('passive-pill-wrap').innerHTML=PASSIVE_TYPES.map(p=>`
     <div class="sub-pill passive-pill ${selectedSubjectKey===p.key?'selected':''}" style="border-color:${selectedSubjectKey===p.key?p.color:'transparent'}" onclick="selectSubject('${p.key}')">
       <span style="width:7px;height:7px;border-radius:50%;background:${p.color};display:inline-block"></span>${p.name} (수강)
     </div>`).join('');
 }
 
-// ── 어제/오늘/내일 공부 세션 렌더링 공통 함수 ──
 function renderSessionList(targetDateStr, containerId, isToday) {
   const sessions = studySessions.filter(s => s.date === targetDateStr);
   const el = document.getElementById(containerId);
@@ -862,7 +864,6 @@ function renderStudySessions(){
   renderSessionList(tom, 'study-list-tomorrow', false);
 }
 
-// ── 과목 타이머 ──
 function renderSubjectTimers(){
   const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
   const wStart=weekStartDate().toISOString().slice(0,10);
@@ -879,7 +880,7 @@ function renderSubjectTimers(){
   }).join('');
 }
 
-// ── D-day (공통) ──
+// ── D-day ──
 function buildDday(targetId){
   const all=[...exams,...getAllSubjects().filter(s=>s.examDate).map(s=>({name:s.name+' 시험',date:s.examDate}))];
   all.sort((a,b)=>a.date.localeCompare(b.date));
@@ -913,7 +914,6 @@ function renderDailyStats(){
     <div class="stat-card"><div class="stat-val" style="color:var(--accent)">${upcoming?'D-'+diffDays(upcoming.date):'—'}</div><div class="stat-lbl">${upcoming?upcoming.name:'시험 없음'}</div></div>`;
 }
 
-// ── 할 일 ──
 function renderTodos(){
   const todayT=todos.filter(t=>t.date===todayStr());
   document.getElementById('todo-prog-fill').style.width=todoPct()+'%';
@@ -927,27 +927,61 @@ function renderTodos(){
   </div>`).join('');
 }
 
-// ── 주간 단일 렌더러 ──
+// ── 주간 단일 렌더러 (2x4 요약박스 추가) ──
 function renderSingleWeekGrid(offsetWeeks, targetId){
-  const dates=getWeekDates(offsetWeeks),today=todayStr(),dayNames=['일','월','화','수','목','금','토'];
-  const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
-  document.getElementById(targetId).innerHTML=dates.map((d)=>{
-    const isToday=d===today,dn=new Date(d);
-    const daySessions=studySessions.filter(s=>s.date===d);
-    const dayTodos=todos.filter(t=>t.date===d);
-    const total=daySessions.length+dayTodos.length;
-    const done2=daySessions.filter(s=>s.done).length+dayTodos.filter(t=>t.done).length;
-    const evts=[
-      ...exams.filter(e=>e.date===d).map(e=>`<div class="week-event" style="background:#fee2e2;color:#991b1b"><span class="week-event-text">📝${e.name}</span></div>`),
-      ...daySessions.map(s=>{const sub=allSubs.find(sb=>sb.key===s.subjectKey);const c=sub?sub.color:'#888';const tLabel=s.manualStart?` ${s.manualStart}~${s.manualEnd}`:'';return`<div class="week-event" draggable="true" ondragstart="onDragStart(event,'study',${s.id})" style="background:${c}22;color:${c}"><span class="week-event-text">${s.done?'✅':'📚'}${s.subjectName}: ${s.task}${tLabel}</span><span class="week-event-del" onclick="delWeekEvent(event,'study',${s.id})">×</span></div>`}),
-      ...dayTodos.map(t=>`<div class="week-event" draggable="true" ondragstart="onDragStart(event,'todo',${t.id})" style="background:var(--surface2);color:var(--text2)"><span class="week-event-text">${t.done?'✅':'·'}${t.text}</span><span class="week-event-del" onclick="delWeekEvent(event,'todo',${t.id})">×</span></div>`),
+  const dates = getWeekDates(offsetWeeks);
+  const today = todayStr();
+  const dayNames = ['월','화','수','목','금','토','일']; // 월요일 시작 배열
+  const allSubs = [...getAllSubjects(),...PASSIVE_TYPES];
+
+  // 1. 주간 총 공부시간 계산
+  let totalWeekSec = 0;
+  let dayTimes = [0,0,0,0,0,0,0];
+  dates.forEach((d, idx) => {
+    const daySessions = timerSessions.filter(s => s.date === d);
+    let secs = daySessions.reduce((a, s) => a + s.elapsed, 0);
+    if(activeStudy && today === d) {
+       const actS = studySessions.find(ss => ss.id === activeStudy);
+       if(actS) secs += studyElapsed(actS);
+    }
+    dayTimes[idx] = secs;
+    totalWeekSec += secs;
+  });
+
+  function fmtKor(s) {
+    const h = Math.floor(s/3600);
+    const m = Math.floor((s%3600)/60);
+    return `${h}시간 ${String(m).padStart(2,'0')}분`;
+  }
+
+  let summaryContent = ['월','화','수','목','금','토','일'].map((name, idx) => `<div style="display:flex;justify-content:space-between;margin-bottom:2px;color:var(--text2)"><span>${name}</span><span style="font-family:'DM Mono',monospace">${fmtKor(dayTimes[idx])}</span></div>`).join('');
+  summaryContent += `<div style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--border2); font-weight:700; color:var(--accent); display:flex; justify-content:space-between;"><span>총</span><span style="font-family:'DM Mono',monospace">${fmtKor(totalWeekSec)}</span></div>`;
+
+  let html = `<div class="week-day" style="background:var(--surface); border:1.5px solid var(--border); padding:10px; cursor:default;">
+    <div style="font-size:12px; font-weight:700; margin-bottom:8px; text-align:center; color:var(--text);">📊 주간 공부시간</div>
+    <div style="font-size:11px; width:100%;">${summaryContent}</div>
+  </div>`;
+
+  // 2. 날짜별 박스 생성
+  html += dates.map((d, idx)=>{
+    const isToday = d === today;
+    const daySessions = studySessions.filter(s => s.date === d);
+    const dayTodos = todos.filter(t => t.date === d);
+    const total = daySessions.length + dayTodos.length;
+    const done2 = daySessions.filter(s => s.done).length + dayTodos.filter(t => t.done).length;
+    const evts = [
+      ...exams.filter(e => e.date === d).map(e => `<div class="week-event" style="background:#fee2e2;color:#991b1b"><span class="week-event-text">📝${e.name}</span></div>`),
+      ...daySessions.map(s => {const sub = allSubs.find(sb => sb.key === s.subjectKey);const c = sub ? sub.color : '#888';const tLabel = s.manualStart ? ` ${s.manualStart}~${s.manualEnd}` : '';return`<div class="week-event" draggable="true" ondragstart="onDragStart(event,'study',${s.id})" style="background:${c}22;color:${c}"><span class="week-event-text">${s.done?'✅':'📚'}${s.subjectName}: ${s.task}${tLabel}</span><span class="week-event-del" onclick="delWeekEvent(event,'study',${s.id})">×</span></div>`}),
+      ...dayTodos.map(t => `<div class="week-event" draggable="true" ondragstart="onDragStart(event,'todo',${t.id})" style="background:var(--surface2);color:var(--text2)"><span class="week-event-text">${t.done?'✅':'·'}${t.text}</span><span class="week-event-del" onclick="delWeekEvent(event,'todo',${t.id})">×</span></div>`),
     ].join('');
-    return`<div class="week-day${isToday?' today':''}" onclick="openDayModal('${d}')" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${d}')">
-      <div class="week-day-head${isToday?' today-h':''}">${dayNames[dn.getDay()]} ${parseInt(d.slice(5,7))}/${parseInt(d.slice(8))}</div>
+    return `<div class="week-day${isToday?' today':''}" onclick="openDayModal('${d}')" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${d}')">
+      <div class="week-day-head${isToday?' today-h':''}">${dayNames[idx]} ${parseInt(d.slice(5,7))}/${parseInt(d.slice(8))}</div>
       <span class="week-day-pct">${total>0?`${done2}/${total}`:''}</span>
       ${evts||'<div style="font-size:10px;color:var(--text3);text-align:center;margin-top:8px">—</div>'}
     </div>`;
   }).join('');
+
+  document.getElementById(targetId).innerHTML = html;
 }
 
 function renderWeekGrid(){
@@ -1032,7 +1066,6 @@ function renderCalendar(){
     :'<div class="empty">남은 할 일이 없어요 🎉</div>';
 }
 
-// ── 날짜 모달 ──
 function openDayModal(ds){
   const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
   const[,m,d]=ds.split('-');
@@ -1134,10 +1167,9 @@ function renderCheckTable(){
   document.getElementById('check-table').innerHTML=`<div class="lecture-table-wrap"><table class="lt"><thead>${th}</thead><tbody>${tbody}</tbody></table></div>`;
 }
 
-// ── 날짜 헤더 및 타임라인 렌더링 세팅 ──
 function renderTopDateHeader(){
   const days=['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
-  const now=new Date(); // 헤더는 실제 오늘 날짜 표기
+  const now=new Date();
   const fmt=`${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 ${days[now.getDay()]}`;
   ['header-today-text-daily','header-today-text'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=fmt;});
 }
@@ -1150,7 +1182,6 @@ function renderAll(){
   renderStudySessions();
   renderSubjectTimers();
   
-  // 오늘과 어제의 타임라인 모두 렌더링
   drawTimeline(todayStr(), 'timeline-wrap', 'tl-title-today', '오늘의 타임라인');
   drawTimeline(offsetDateStr(todayStr(), -1), 'timeline-wrap-yesterday', 'tl-title-yesterday', '어제의 타임라인');
   
