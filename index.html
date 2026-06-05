@@ -81,7 +81,7 @@ input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,select:focu
 .sub-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer;transition:all 0.15s}
 .passive-pill{background:var(--purple-light);color:var(--purple);border:1.5px solid transparent}
 .passive-pill.selected{border-color:var(--purple);background:var(--purple-light)}
-/* 주간 2x4 (8칸) 으로 변경 */
+/* 주간 2x4 (8칸) */
 .week-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-bottom:4px}
 .week-day{background:var(--surface2);border-radius:var(--radius-sm);padding:8px 6px;min-height:100px;cursor:pointer}
 .week-day.today{border:1.5px solid var(--accent);background:var(--accent-light)}
@@ -534,40 +534,49 @@ window.addEventListener('DOMContentLoaded', function(){
   });
 });
 
-// ── 유틸 (새벽 5시 기준 논리적 하루 계산) ──
+// ── 유틸 (새벽 5시 기준 논리적 하루 계산 및 타임존 오류 수정) ──
 function todayStr(){
   const now = new Date();
   now.setHours(now.getHours() - 5); 
   const offset = now.getTimezoneOffset() * 60000;
   return (new Date(now.getTime() - offset)).toISOString().slice(0, 10);
 }
-function offsetDateStr(base, days) {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+
+// 세계표준시 포맷 시 발생하는 날짜 밀림 현상 방지를 위해 문자열 직접 조립 함수 추가
+function toLocalISO(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
 }
+
+function offsetDateStr(base, days) {
+  const d = new Date(base + 'T00:00:00'); // 로컬 자정 강제 파싱
+  d.setDate(d.getDate() + days);
+  return toLocalISO(d);
+}
+
 function diffDays(d){return Math.ceil((new Date(d)-new Date(todayStr()))/86400e3)}
 function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`:`${m}:${String(sc).padStart(2,'0')}`}
 function fmtH(s){return(s/3600).toFixed(1)+'h'}
 function mDate(d){const[,m,dd]=d.split('-');return`${parseInt(m)}/${parseInt(dd)}`}
 
-// 이번 주의 월요일 날짜 계산으로 수정
+// 이번 주의 월요일 날짜 계산 (타임존 에러 수정 완료)
 function weekStartDate(){
-  const d=new Date(todayStr());
-  const day=d.getDay();
-  const diff=d.getDate() - day + (day === 0 ? -6 : 1);
+  const d = new Date(todayStr() + 'T00:00:00'); // 로컬 타임 자정 적용
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
-  d.setHours(0,0,0,0);
   return d;
 }
 
 function getWeekDates(offsetWeeks = 0){
-  const s=weekStartDate();
+  const s = weekStartDate();
   s.setDate(s.getDate() + (offsetWeeks * 7));
   return Array.from({length:7},(_,i)=>{
-    const d=new Date(s);
-    d.setDate(s.getDate()+i);
-    return d.toISOString().slice(0,10);
+    const d = new Date(s);
+    d.setDate(d.getDate() + i);
+    return toLocalISO(d); // UTC 밀림 오류 수정됨
   });
 }
 
@@ -745,7 +754,7 @@ function submitNewSubject(){
 
 // ── 타임라인 ──
 function drawTimeline(targetDateStr, containerId, titleId, titlePrefix) {
-  const tDate = new Date(targetDateStr);
+  const tDate = new Date(targetDateStr + 'T00:00:00'); // 타임존 문제 방지
   const y = String(tDate.getFullYear()).slice(2);
   const m = String(tDate.getMonth()+1).padStart(2,'0');
   const d = String(tDate.getDate()).padStart(2,'0');
@@ -866,7 +875,7 @@ function renderStudySessions(){
 
 function renderSubjectTimers(){
   const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
-  const wStart=weekStartDate().toISOString().slice(0,10);
+  const wStart = toLocalISO(weekStartDate()); // 수정된 날짜 방식
   document.getElementById('subject-timer-list').innerHTML=allSubs.map(s=>{
     const todayE=timerSessions.filter(ts=>ts.subjectKey===s.key&&ts.date===todayStr()).reduce((a,ts)=>a+ts.elapsed,0);
     const actE=activeStudy&&studySessions.find(ss=>ss.id===activeStudy&&ss.subjectKey===s.key)?studyElapsed(studySessions.find(ss=>ss.id===activeStudy)):0;
@@ -927,11 +936,11 @@ function renderTodos(){
   </div>`).join('');
 }
 
-// ── 주간 단일 렌더러 (2x4 요약박스 추가) ──
+// ── 주간 단일 렌더러 (2x4 요약박스 추가 및 타임존 오류 수정 반영) ──
 function renderSingleWeekGrid(offsetWeeks, targetId){
   const dates = getWeekDates(offsetWeeks);
   const today = todayStr();
-  const dayNames = ['월','화','수','목','금','토','일']; // 월요일 시작 배열
+  const dayNames = ['월','화','수','목','금','토','일']; 
   const allSubs = [...getAllSubjects(),...PASSIVE_TYPES];
 
   // 1. 주간 총 공부시간 계산
@@ -1034,7 +1043,7 @@ document.addEventListener('dragend',()=>{
 
 // ── 캘린더 ──
 function renderCalendar(){
-  const today=new Date(todayStr()),y=today.getFullYear(),m=today.getMonth();
+  const today=new Date(todayStr() + 'T00:00:00'),y=today.getFullYear(),m=today.getMonth(); // 타임존 오류 방지
   document.getElementById('cal-title').textContent=`${y}년 ${m+1}월`;
   const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),todayD=today.getDate();
   const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
@@ -1108,7 +1117,8 @@ function toggleModalStudy(id,ds){studySessions=studySessions.map(s=>s.id===id?{.
 
 // ── 통계 ──
 function renderStats(){
-  const allSubs=getAllSubjects(),wStart=weekStartDate().toISOString().slice(0,10);
+  const allSubs=getAllSubjects();
+  const wStart=toLocalISO(weekStartDate()); // 수정된 날짜 방식 적용
   const done=todos.filter(t=>t.done).length,totalStudy=timerSessions.reduce((a,s)=>a+s.elapsed,0);
   document.getElementById('stats-grid').innerHTML=`
     <div class="stat-card"><div class="stat-val">${done}</div><div class="stat-lbl">완료한 할 일</div></div>
