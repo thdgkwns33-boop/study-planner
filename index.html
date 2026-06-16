@@ -99,6 +99,7 @@ input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,select:focu
 .session-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .session-name{font-size:13px;font-weight:500;white-space:nowrap}
 .session-task{font-size:12px;color:var(--text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.session-task:hover{text-decoration:underline;}
 .session-time{font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);white-space:nowrap}
 .session-time.active{color:var(--accent);font-weight:500}
 .passive-tag{font-size:10px;background:var(--purple-light);color:var(--purple);padding:1px 7px;border-radius:999px;white-space:nowrap}
@@ -148,7 +149,9 @@ input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,select:focu
 table.lt{width:100%;border-collapse:collapse;font-size:12px;background:var(--surface)}
 table.lt th{background:#f8f7f3;font-weight:500;font-size:11px;color:var(--text2);padding:7px 9px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);white-space:nowrap;text-align:center;position:sticky;top:0;z-index:2}
 table.lt td{padding:6px 7px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);vertical-align:middle;text-align:center}
-table.lt td.title-cell{text-align:left;font-size:12px;line-height:1.4;min-width:180px;max-width:240px}
+table.lt td.title-cell{text-align:left;font-size:12px;line-height:1.4;min-width:180px;max-width:240px;cursor:pointer;}
+table.lt td.title-cell:hover, table.lt td.prof-cell:hover {text-decoration:underline;}
+table.lt td.prof-cell {white-space:nowrap;font-size:12px;cursor:pointer;}
 table.lt td.week-cell{color:var(--text3);font-size:11px;font-family:'DM Mono',monospace;white-space:nowrap}
 table.lt tr:last-child td{border-bottom:none}
 table.lt tr:hover td{background:#fafaf7}
@@ -430,7 +433,7 @@ function setSyncStatus(s){
 const SUB_COLORS=['#2454ff','#1a7a4a','#b45309','#993556','#6d28d9','#0f6e6e','#c0392b','#2980b9'];
 const PASSIVE_TYPES=[{key:'_lecture',name:'수업',color:'#6d28d9'}];
 
-let todos=[], exams=[], studySessions=[], timerSessions=[], checkData={}, extraSubjects=[];
+let todos=[], exams=[], studySessions=[], timerSessions=[], checkData=[], extraSubjects=[];
 let activeStudy=null, timerInterval=null, selectedSubjectKey=null;
 let currentTab='daily', currentCheckTab=null, currentCheckFinishedMode=false;
 let saveTimeout=null, isLoaded=false;
@@ -493,8 +496,8 @@ const BASE_SUBJECTS=[
     {week:'',date:'6/9',no:12,title:'간질환의 외과적 치료',prof:'홍성권',hrs:1},
     {week:'',date:'6/10',no:13,title:'담즙생성과 담석의 발생기전',prof:'장성훈',hrs:1},
     {week:'',date:'6/10',no:14,title:'담낭 및 담도의 양성질환',prof:'장성훈',hrs:1},
-    {week:'',date:'6/10',no:15,title:'담낭 및 담도의 악성질환',prof:'장성훈',hrs:1},
-    {week:'',date:'6/11',no:16,title:'췌장의 내외분비 기능',prof:'박진명',hrs:1},
+    {week:'',date:'6/10',no:14,title:'담낭 및 담도의 악성질환',prof:'장성훈',hrs:1},
+    {week:'11',date:'6/11',no:16,title:'췌장의 내외분비 기능',prof:'박진명',hrs:1},
     {week:'',date:'6/11',no:17,title:'췌장염+증례토의',prof:'박진명',hrs:2},
     {week:'',date:'6/11',no:18,title:'췌장종양',prof:'박진명',hrs:1},
     {week:'',date:'6/12',no:19,title:'췌담도 질환 영상의학',prof:'전용환',hrs:1},
@@ -516,7 +519,8 @@ function getAllSubjects(){
     const matchedExtra = extraSubjects.find(ex => ex.key === s.key);
     return {
       ...s,
-      isFinished: matchedExtra && matchedExtra.isFinished !== undefined ? matchedExtra.isFinished : s.isFinished
+      isFinished: matchedExtra && matchedExtra.isFinished !== undefined ? matchedExtra.isFinished : s.isFinished,
+      lectures: matchedExtra && matchedExtra.lectures ? matchedExtra.lectures : s.lectures
     };
   }).concat(extraMapped.filter(s => !BASE_SUBJECTS.some(b => b.key === s.key)));
 }
@@ -554,32 +558,28 @@ window.addEventListener('DOMContentLoaded', function(){
   });
 });
 
-// ── 유틸 (새벽 5시 기준 논리적 하루 계산 및 타임존 오류 수정) ──
+// ── 유틸 ──
 function todayStr(){
   const now = new Date();
   now.setHours(now.getHours() - 5); 
   const offset = now.getTimezoneOffset() * 60000;
   return (new Date(now.getTime() - offset)).toISOString().slice(0, 10);
 }
-
 function toLocalISO(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
 }
-
 function offsetDateStr(base, days) {
   const d = new Date(base + 'T00:00:00'); 
   d.setDate(d.getDate() + days);
   return toLocalISO(d);
 }
-
 function diffDays(d){return Math.ceil((new Date(d)-new Date(todayStr()))/86400e3)}
 function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${String(m).padStart(2,'0')}:${String(sc).padStart(2,'0')}`:`${m}:${String(sc).padStart(2,'0')}`}
 function fmtH(s){return(s/3600).toFixed(1)+'h'}
 function mDate(d){const[,m,dd]=d.split('-');return`${parseInt(m)}/${parseInt(dd)}`}
-
 function weekStartDate(){
   const d = new Date(todayStr() + 'T00:00:00'); 
   const day = d.getDay();
@@ -587,7 +587,6 @@ function weekStartDate(){
   d.setDate(diff);
   return d;
 }
-
 function getWeekDates(offsetWeeks = 0){
   const s = weekStartDate();
   s.setDate(s.getDate() + (offsetWeeks * 7));
@@ -597,7 +596,6 @@ function getWeekDates(offsetWeeks = 0){
     return toLocalISO(d); 
   });
 }
-
 function timeToMin(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
 function minToSec(m){return m*60;}
 
@@ -631,7 +629,81 @@ function toggleTodo(id){todos=todos.map(t=>t.id===id?{...t,done:!t.done}:t);sche
 function delTodo(id){todos=todos.filter(t=>t.id!==id);scheduleSave();renderAll();}
 function todoPct(){const t=todos.filter(t=>t.date===todayStr());return t.length?Math.round(t.filter(t=>t.done).length/t.length*100):0}
 
-// ── 공부 세션 ──
+// ── 공부 세션 내용 수정 기능 ──
+function editStudyTask(id){
+  const s = studySessions.find(s=>s.id===id);
+  if(!s) return;
+  const newText = prompt("공부 내용을 수정하세요:", s.task);
+  if(newText === null) return;
+  const trimmed = newText.trim();
+  if(!trimmed) return alert("공부 내용을 입력해야 합니다.");
+  s.task = trimmed;
+  scheduleSave();renderAll();
+}
+
+// ── 강의명 수정 기능 ──
+function editLectureTitle(subKey, no){
+  const allSubs = getAllSubjects();
+  const sub = allSubs.find(s=>s.key===subKey);
+  if(!sub) return;
+  const lec = sub.lectures.find(l=>l.no===no);
+  if(!lec) return;
+  
+  const newTitle = prompt("강의명을 수정하세요:", lec.title);
+  if(newTitle === null) return;
+  const trimmed = newTitle.trim();
+  if(!trimmed) return alert("강의명을 입력해야 합니다.");
+
+  updateLectureField(subKey, no, 'title', trimmed);
+}
+
+// ── 교수명 수정 기능 ──
+function editLectureProf(subKey, no){
+  const allSubs = getAllSubjects();
+  const sub = allSubs.find(s=>s.key===subKey);
+  if(!sub) return;
+  const lec = sub.lectures.find(l=>l.no===no);
+  if(!lec) return;
+  
+  const newProf = prompt("교수명을 수정하세요:", lec.prof);
+  if(newProf === null) return;
+  const trimmed = newProf.trim();
+  
+  updateLectureField(subKey, no, 'prof', trimmed);
+}
+
+// ── 공통 강의 필드 업데이트 로직 ──
+function updateLectureField(subKey, no, field, value){
+  const allSubs = getAllSubjects();
+  const sub = allSubs.find(s=>s.key===subKey);
+  if(!sub) return;
+
+  let extIdx = extraSubjects.findIndex(s=>s.key===subKey);
+  if(extIdx < 0){
+    const baseSub = BASE_SUBJECTS.find(s=>s.key===subKey);
+    extraSubjects.push({
+      key: baseSub.key,
+      name: baseSub.name,
+      examDate: baseSub.examDate || '',
+      hasManager: baseSub.hasManager || false,
+      isFinished: baseSub.isFinished || false,
+      lectures: JSON.parse(JSON.stringify(baseSub.lectures))
+    });
+    extIdx = extraSubjects.length - 1;
+  } else {
+    if(!extraSubjects[extIdx].lectures || extraSubjects[extIdx].lectures.length === 0){
+      const baseSub = BASE_SUBJECTS.find(s=>s.key===subKey);
+      extraSubjects[extIdx].lectures = JSON.parse(JSON.stringify(baseSub ? baseSub.lectures : sub.lectures));
+    }
+  }
+
+  const targetLec = extraSubjects[extIdx].lectures.find(l=>l.no===no);
+  if(targetLec){
+    targetLec[field] = value;
+  }
+  scheduleSave();renderAll();
+}
+
 function selectSubject(key){selectedSubjectKey=key;renderSubjectPills();}
 
 function addStudySession(){
@@ -883,7 +955,7 @@ function drawTimeline(targetDateStr, containerId, titleId, titlePrefix) {
   if(wrap) wrap.innerHTML = `<div class="tl-header-row"><div class="tl-header-cell" style="border-right:1px solid #dde">Time</div><div class="tl-header-cell">Total Time</div></div>${rows}`;
 }
 
-// ── 과목 pill (진행중인 과목만 필터링) ──
+// ── 과목 pill ──
 function renderSubjectPills(){
   const activeSubs=getAllSubjects().filter(s => !s.isFinished);
   document.getElementById('subject-pill-selector').innerHTML=activeSubs.map(s=>`
@@ -917,7 +989,7 @@ function renderSessionList(targetDateStr, containerId, isToday) {
       <div class="session-dot" style="background:${color}"></div>
       <div class="session-name" style="color:${color}">${s.subjectName}</div>
       ${passiveTag}
-      <div class="session-task${s.done ? ' todo-text done' : ''}">${s.task}</div>
+      <div class="session-task${s.done ? ' todo-text done' : ''}" onclick="editStudyTask(${s.id})" style="cursor:pointer;" title="클릭하여 내용 수정">${s.task}</div>
       ${timeLabel}
       <div class="session-time${s.active ? ' active' : ''}">${s.manualStart ? fmtSec(elapsed) : elapsed > 0 ? fmtSec(elapsed) : ''}</div>
       ${!s.manualStart ? (s.active ? `<button class="btn btn-danger btn-sm" onclick="stopStudy(${s.id})">■ 중지</button>` : `<button class="btn btn-success btn-sm" onclick="startStudy(${s.id})">▶ 시작</button>`) : ''}
@@ -1138,7 +1210,7 @@ function renderCalendar(){
   document.getElementById('cal-grid').innerHTML=html;
   const rem=todos.filter(t=>!t.done);
   document.getElementById('all-todo-list').innerHTML=rem.length
-    ?rem.slice(0,12).map(t=>`<div class="todo-item"><input type="checkbox" class="todo-cb" onchange="toggleTodo(${t.id})"><div style="flex:1;min-width:0"><div class="todo-text">${t.text}</div></div><div class="todo-meta">${mDate(t.date)}</div><span class="badge badge-${t.prio==='높음'?'high':t.prio==='낮음'?'low':'mid'}">${t.prio}</span><button class="btn btn-danger btn-sm" onclick="delTodo(${t.id})">삭제</button></div>`).join('')+(rem.length>12?`<div class="empty">+${rem.length-12}개 더</div>`:'')
+    ?rem.slice(0,12).map(t=>`<div class="todo-item"><input type="checkbox" class="todo-cb" onchange="toggleTodo(${t.id})"><div style="flex:1;min-width:0"><div class="todo-text">${t.text}</div></div><div class="todo-meta">${mDate(t.date)}</div><span class="badge badge-${t.prio==='높음'?'high':t.prio==='낮음'?'low':'mid'}">${t.prio}</span><button class="btn btn-danger btn-sm" onclick="delTodo(${t.id})">삭제</button></div>`) + (rem.length>12?`<div class="empty">+${rem.length-12}개 더</div>`:'')
     :'<div class="empty">남은 할 일이 없어요 🎉</div>';
 }
 
@@ -1256,7 +1328,7 @@ function renderCheckTable(){
     const reviewBtn = `<button class="ox-btn ${c.review?'o':''}" onclick="toggleOX('${key}',${r.no},'review')">${c.review?'O':'—'}</button>`;
     const remarkInput = `<input type="text" class="remark-input" value="${c.remark||''}" onchange="updateRemark('${key}',${r.no},this.value)" placeholder="...">`;
     
-    return`<tr class="${r.imp?'imp':''}"><td class="week-cell">${r.week}</td><td class="week-cell">${r.date||''}</td><td style="color:var(--text3);font-size:11px;font-family:'DM Mono',monospace">${r.no}</td><td class="title-cell">${r.title}</td><td style="white-space:nowrap;font-size:12px">${r.prof}</td><td style="font-size:12px">${r.hrs}</td>${hasM?`<td><span style="font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:999px;color:var(--text2)">${r.manager||''}</span></td>`:''}<td><div class="study-btn-group">${studyBtns}</div></td><td>${reviewBtn}</td><td><button class="ox-btn ${c.jet?'o':''}" onclick="toggleOX('${key}',${r.no},'jet')">${c.jet?'O':'—'}</button></td><td><button class="ox-btn ${c.note?'o':''}" onclick="toggleOX('${key}',${r.no},'note')">${c.note?'O':'—'}</button></td><td>${jbCell}</td><td><button class="ox-btn ${c.memo?'o':''}" onclick="toggleOX('${key}',${r.no},'memo')">${c.memo?'O':'—'}</button></td><td><button class="ox-btn ${c.final?'o':''}" onclick="toggleOX('${key}',${r.no},'final')">${c.final?'O':'—'}</button></td><td>${remarkInput}</td></tr>`;
+    return`<tr class="${r.imp?'imp':''}"><td class="week-cell">${r.week}</td><td class="week-cell">${r.date||''}</td><td style="color:var(--text3);font-size:11px;font-family:'DM Mono',monospace">${r.no}</td><td class="title-cell" onclick="editLectureTitle('${key}', ${r.no})" title="클릭하여 강의명 수정">${r.title}</td><td class="prof-cell" onclick="editLectureProf('${key}', ${r.no})" title="클릭하여 교수명 수정">${r.prof}</td><td style="font-size:12px">${r.hrs}</td>${hasM?`<td><span style="font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:999px;color:var(--text2)">${r.manager||''}</span></td>`:''}<td><div class="study-btn-group">${studyBtns}</div></td><td>${reviewBtn}</td><td><button class="ox-btn ${c.jet?'o':''}" onclick="toggleOX('${key}',${r.no},'jet')">${c.jet?'O':'—'}</button></td><td><button class="ox-btn ${c.note?'o':''}" onclick="toggleOX('${key}',${r.no},'note')">${c.note?'O':'—'}</button></td><td>${jbCell}</td><td><button class="ox-btn ${c.memo?'o':''}" onclick="toggleOX('${key}',${r.no},'memo')">${c.memo?'O':'—'}</button></td><td><button class="ox-btn ${c.final?'o':''}" onclick="toggleOX('${key}',${r.no},'final')">${c.final?'O':'—'}</button></td><td>${remarkInput}</td></tr>`;
   }).join('');
   document.getElementById('check-table').innerHTML=`<div class="lecture-table-wrap"><table class="lt"><thead>${th}</thead><tbody>${tbody}</tbody></table></div>`;
 }
