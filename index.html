@@ -138,6 +138,9 @@ input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,select:focu
 .dday-chip-cnt{font-weight:500;color:var(--accent);font-family:'DM Mono',monospace}
 .dday-chip-del{cursor:pointer;color:var(--text3);font-size:14px}.dday-chip-del:hover{color:var(--red)}
 /* check table */
+.check-status-tabs{display:flex;gap:10px;margin-bottom:14px;border-bottom:2px solid var(--border);padding-bottom:8px}
+.cstab{font-size:14px;font-weight:700;color:var(--text3);cursor:pointer;padding:4px 8px;transition:all 0.15s}
+.cstab.active{color:var(--text);border-bottom:3px solid var(--text)}
 .subject-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
 .stab{padding:7px 18px;border-radius:999px;border:1px solid var(--border2);background:var(--surface);font-size:13px;cursor:pointer;transition:all 0.15s;color:var(--text2)}
 .stab:hover{background:var(--surface2)}.stab.active{background:var(--accent);color:white;border-color:var(--accent);font-weight:500}
@@ -164,8 +167,8 @@ table.lt tr.imp td.title-cell{font-weight:500;color:#92400e}
 .diff-btn.sel-상{background:#fee2e2;color:#991b1b;border-color:#fca5a5;font-weight:500}
 .diff-btn.sel-중{background:#fef9c3;color:#854d0e;border-color:#fde047;font-weight:500}
 .diff-btn.sel-하{background:#dcfce7;color:#166534;border-color:#86efac;font-weight:500}
-.prog-mini-wrap{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.prog-mini-bar{flex:1;height:5px;background:var(--surface2);border-radius:999px;overflow:hidden}
+.prog-mini-wrap{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.prog-mini-bar{flex:1;min-width:150px;height:5px;background:var(--surface2);border-radius:999px;overflow:hidden}
 .prog-mini-fill{height:100%;border-radius:999px;background:var(--accent);transition:width 0.4s}
 .prog-mini-txt{font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;white-space:nowrap}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:100;align-items:center;justify-content:center}
@@ -359,6 +362,10 @@ function checkAppUnlock(){
 
     <div id="page-check" class="page">
       <div class="page-title">강의 체크표</div>
+      <div class="check-status-tabs">
+        <div class="cstab active" id="cstab-active" onclick="switchCheckStatusTab(false)">진행 중</div>
+        <div class="cstab" id="cstab-finished" onclick="switchCheckStatusTab(true)">종강</div>
+      </div>
       <div class="subject-tabs" id="check-tabs"></div>
       <div id="check-progress"></div>
       <div id="check-table"></div>
@@ -425,12 +432,12 @@ const PASSIVE_TYPES=[{key:'_lecture',name:'수업',color:'#6d28d9'}];
 
 let todos=[], exams=[], studySessions=[], timerSessions=[], checkData={}, extraSubjects=[];
 let activeStudy=null, timerInterval=null, selectedSubjectKey=null;
-let currentTab='daily', currentCheckTab=null;
+let currentTab='daily', currentCheckTab=null, currentCheckFinishedMode=false;
 let saveTimeout=null, isLoaded=false;
 let inputMode='timer';
 
 const BASE_SUBJECTS=[
-  {key:'surgery',name:'수술의학',color:'#2454ff',examDate:'2025-06-10',hasManager:false,lectures:[
+  {key:'surgery',name:'수술의학',color:'#2454ff',examDate:'2025-06-10',hasManager:false,isFinished:true,lectures:[
     {week:'3주차',date:'4/1',no:1,title:'Surgery Ethics and Professionalism',prof:'김양희',hrs:1},
     {week:'',date:'4/1',no:2,title:'Shock, Electrolytes, and Fluid',prof:'이광진',hrs:2},
     {week:'4주차',date:'4/8',no:3,title:'Metabolism in Surgical Patient',prof:'홍성권',hrs:2},
@@ -452,26 +459,26 @@ const BASE_SUBJECTS=[
     {week:'10주차',date:'5/20',no:19,title:'Vascular disease',prof:'이광진',hrs:2},
     {week:'11주차',date:'5/27',no:20,title:'Transplantation (이식윤리)',prof:'이광진',hrs:3},
   ]},
-  {key:'resp',name:'호흡기학',color:'#1a7a4a',examDate:'2025-06-15',hasManager:true,lectures:[
+  {key:'resp',name:'호흡기학',color:'#1a7a4a',examDate:'2025-06-15',hasManager:true,isFinished:true,lectures:[
     {week:'12주차',date:'6/2(화)',no:1,title:'흉막질환',prof:'이승준',hrs:1,manager:'준호'},
     {week:'',date:'6/2(화)',no:2,title:'호흡부전/환기장애',prof:'권오범',hrs:1,manager:'주현'},
     {week:'',date:'6/4(목)',no:3,title:'산소요법',prof:'문다혜',hrs:1,manager:'준호'},
     {week:'',date:'6/4(목)',no:4,title:'기계요법',prof:'문다혜',hrs:1,manager:'준호'},
     {week:'',date:'6/4(목)',no:5,title:'급성호흡곤란 증후군',prof:'문다혜',hrs:1,manager:'준호'},
-    {week:'',date:'6/5(금)',no:6,title:'폐종양의 병리본',prof:'윤식호',hrs:1,manager:'준호'},
-    {week:'',date:'6/5(금)',no:7,title:'폐종양의 임상',prof:'히연정',hrs:2,manager:'혜형'},
+    {week:'6/5(금)',no:6,title:'폐종양의 병리본',prof:'윤식호',hrs:1,manager:'준호'},
+    {week:'6/5(금)',no:7,title:'폐종양의 임상',prof:'히연정',hrs:2,manager:'혜형'},
     {week:'13주차',date:'6/8(월)',no:8,title:'미만성 간질성 폐질환 및 폐종양의 병리',prof:'류영준',hrs:1,manager:'현준'},
     {week:'',date:'6/8(월)',no:9,title:'미만성 간질성 폐질환 임상 및 사르코이드증',prof:'한선숙',hrs:2,manager:'유진'},
-    {week:'',date:'6/9(화)',no:10,title:'폐종양의 방사선 치료',prof:'정누리현',hrs:1,manager:'준호'},
-    {week:'',date:'6/9(화)',no:11,title:'흉부재활',prof:'박회원',hrs:1,manager:'하준'},
-    {week:'',date:'6/9(화)',no:12,title:'흡연과 건강',prof:'김선미',hrs:1,manager:'혜형'},
-    {week:'',date:'6/9(화)',no:13,title:'흉막질환의 외과적 처치',prof:'소성준',hrs:2,manager:'현준'},
-    {week:'',date:'6/11(목)',no:14,title:'흉부영상진단의 실제',prof:'한현',hrs:2,manager:'하준'},
-    {week:'',date:'6/12(금)',no:15,title:'염증성 폐질환의 외과적 치료',prof:'이한필',hrs:1,manager:'주현'},
-    {week:'',date:'6/12(금)',no:16,title:'폐종양의 외과적 치료',prof:'이한필',hrs:2,manager:'준호'},
+    {week:'6/9(화)',no:10,title:'폐종양의 방사선 치료',prof:'정누리현',hrs:1,manager:'준호'},
+    {week:'6/9(화)',no:11,title:'흉부재활',prof:'박회원',hrs:1,manager:'하준'},
+    {week:'6/9(화)',no:12,title:'흡연과 건강',prof:'김선미',hrs:1,manager:'혜형'},
+    {week:'6/9(화)',no:13,title:'흉막질환의 외과적 처치',prof:'소성준',hrs:2,manager:'현준'},
+    {week:'6/11(목)',no:14,title:'흉부영상진단의 실제',prof:'한현',hrs:2,manager:'하준'},
+    {week:'6/12(금)',no:15,title:'염증성 폐질환의 외과적 치료',prof:'이한필',hrs:1,manager:'주현'},
+    {week:'6/12(금)',no:16,title:'폐종양의 외과적 치료',prof:'이한필',hrs:2,manager:'준호'},
     {week:'14주차',date:'6/15(월)',no:17,title:'인문사회 의학: 흡연의 역사와 사회',prof:'소성준',hrs:1,manager:'준호'},
   ]},
-  {key:'gi',name:'소화기학',color:'#b45309',examDate:'2025-06-15',hasManager:false,lectures:[
+  {key:'gi',name:'소화기학',color:'#b45309',examDate:'2025-06-15',hasManager:false,isFinished:true,lectures:[
     {week:'12',date:'6/2',no:1,title:'황달',prof:'김태식',hrs:1},
     {week:'',date:'6/2',no:2,title:'복수와 복부팽만',prof:'김태식',hrs:1},
     {week:'',date:'6/2',no:3,title:'급성 바이러스성 간염+증례토의',prof:'김태식',hrs:2},
@@ -499,7 +506,20 @@ const BASE_SUBJECTS=[
   ]}
 ];
 
-function getAllSubjects(){ return [...BASE_SUBJECTS,...extraSubjects.map((s,i)=>({...s,color:SUB_COLORS[(BASE_SUBJECTS.length+i)%SUB_COLORS.length]}))]; }
+function getAllSubjects(){ 
+  const extraMapped = extraSubjects.map((s,i)=>({
+    ...s,
+    isFinished: s.isFinished !== undefined ? s.isFinished : false,
+    color:SUB_COLORS[(BASE_SUBJECTS.length+i)%SUB_COLORS.length]
+  }));
+  return BASE_SUBJECTS.map(s => {
+    const matchedExtra = extraSubjects.find(ex => ex.key === s.key);
+    return {
+      ...s,
+      isFinished: matchedExtra && matchedExtra.isFinished !== undefined ? matchedExtra.isFinished : s.isFinished
+    };
+  }).concat(extraMapped.filter(s => !BASE_SUBJECTS.some(b => b.key === s.key)));
+}
 
 // ── Firebase ──
 function saveToFirebase(){
@@ -542,7 +562,6 @@ function todayStr(){
   return (new Date(now.getTime() - offset)).toISOString().slice(0, 10);
 }
 
-// 세계표준시 포맷 시 발생하는 날짜 밀림 현상 방지를 위해 문자열 직접 조립 함수 추가
 function toLocalISO(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -551,7 +570,7 @@ function toLocalISO(d) {
 }
 
 function offsetDateStr(base, days) {
-  const d = new Date(base + 'T00:00:00'); // 로컬 자정 강제 파싱
+  const d = new Date(base + 'T00:00:00'); 
   d.setDate(d.getDate() + days);
   return toLocalISO(d);
 }
@@ -561,9 +580,8 @@ function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;
 function fmtH(s){return(s/3600).toFixed(1)+'h'}
 function mDate(d){const[,m,dd]=d.split('-');return`${parseInt(m)}/${parseInt(dd)}`}
 
-// 이번 주의 월요일 날짜 계산 (타임존 에러 수정 완료)
 function weekStartDate(){
-  const d = new Date(todayStr() + 'T00:00:00'); // 로컬 타임 자정 적용
+  const d = new Date(todayStr() + 'T00:00:00'); 
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
@@ -576,7 +594,7 @@ function getWeekDates(offsetWeeks = 0){
   return Array.from({length:7},(_,i)=>{
     const d = new Date(s);
     d.setDate(d.getDate() + i);
-    return toLocalISO(d); // UTC 밀림 오류 수정됨
+    return toLocalISO(d); 
   });
 }
 
@@ -636,7 +654,6 @@ function addStudyManual(){
   if(!startT||!endT)return alert('시작/종료 시간을 모두 입력해주세요');
   
   const startMin=timeToMin(startT),endMin=timeToMin(endT);
-  
   let physicalStart = new Date(sDate+'T'+startT+':00');
   let physicalEnd = new Date(sDate+'T'+endT+':00');
   
@@ -728,6 +745,55 @@ function toggleOX(subKey,no,field){const c=getCell(subKey,no);c[field]=!c[field]
 function toggleJbDiff(subKey,no,val){const c=getCell(subKey,no);if(!c.jb)c.jb=true;c.jbDiff=c.jbDiff===val?'':val;scheduleSave();renderCheckTable();}
 function updateRemark(subKey,no,val){const c=getCell(subKey,no);c.remark=val;scheduleSave();}
 
+// ── 종강 토글 함수 ──
+function toggleSubjectFinished(key) {
+  const allSubs = getAllSubjects();
+  const sub = allSubs.find(s => s.key === key);
+  if(!sub) return;
+  const nextStatus = !sub.isFinished;
+  
+  const baseIdx = BASE_SUBJECTS.findIndex(s => s.key === key);
+  if(baseIdx >= 0) {
+    BASE_SUBJECTS[baseIdx].isFinished = nextStatus;
+  }
+  
+  const extIdx = extraSubjects.findIndex(s => s.key === key);
+  if(extIdx >= 0) {
+    extraSubjects[extIdx].isFinished = nextStatus;
+  } else if(baseIdx >= 0) {
+    extraSubjects.push({
+      key: sub.key,
+      name: sub.name,
+      examDate: sub.examDate || '',
+      hasManager: sub.hasManager || false,
+      lectures: sub.lectures || [],
+      isFinished: nextStatus
+    });
+  }
+  
+  const remaining = getAllSubjects().filter(s => s.isFinished === currentCheckFinishedMode);
+  currentCheckTab = remaining.length ? remaining[0].key : null;
+  
+  if(selectedSubjectKey === key && nextStatus) {
+    selectedSubjectKey = null;
+  }
+  
+  scheduleSave();
+  renderAll();
+}
+
+function switchCheckStatusTab(isFinished) {
+  currentCheckFinishedMode = isFinished;
+  document.getElementById('cstab-active').classList.toggle('active', !isFinished);
+  document.getElementById('cstab-finished').classList.toggle('active', isFinished);
+  
+  const filtered = getAllSubjects().filter(s => s.isFinished === isFinished);
+  currentCheckTab = filtered.length ? filtered[0].key : null;
+  
+  renderCheckTabs();
+  renderCheckTable();
+}
+
 // ── 과목 추가 모달 ──
 function openAddSubjectModal(){document.getElementById('add-subject-modal').classList.add('open');}
 function closeAddSubjectModal(){document.getElementById('add-subject-modal').classList.remove('open');}
@@ -746,7 +812,10 @@ function submitNewSubject(){
     }else if(parts.length>=4){week='';date=parts[0];no=parseInt(parts[1])||lectures.length+1;title=parts[2];prof=parts[3];hrs=parseInt(parts[4])||1;}
     if(title)lectures.push({week,date,no,title,prof,hrs,manager});
   });}
-  extraSubjects.push({key,name,examDate,hasManager,lectures});
+  extraSubjects.push({key,name,examDate,hasManager,lectures,isFinished:false});
+  currentCheckFinishedMode = false;
+  document.getElementById('cstab-active').classList.add('active');
+  document.getElementById('cstab-finished').classList.remove('active');
   scheduleSave();closeAddSubjectModal();
   document.getElementById('new-subject-name').value='';document.getElementById('new-subject-data').value='';
   currentCheckTab=key;go('check');
@@ -754,7 +823,7 @@ function submitNewSubject(){
 
 // ── 타임라인 ──
 function drawTimeline(targetDateStr, containerId, titleId, titlePrefix) {
-  const tDate = new Date(targetDateStr + 'T00:00:00'); // 타임존 문제 방지
+  const tDate = new Date(targetDateStr + 'T00:00:00'); 
   const y = String(tDate.getFullYear()).slice(2);
   const m = String(tDate.getMonth()+1).padStart(2,'0');
   const d = String(tDate.getDate()).padStart(2,'0');
@@ -814,10 +883,10 @@ function drawTimeline(targetDateStr, containerId, titleId, titlePrefix) {
   if(wrap) wrap.innerHTML = `<div class="tl-header-row"><div class="tl-header-cell" style="border-right:1px solid #dde">Time</div><div class="tl-header-cell">Total Time</div></div>${rows}`;
 }
 
-// ── 과목 pill ──
+// ── 과목 pill (진행중인 과목만 필터링) ──
 function renderSubjectPills(){
-  const allSubs=getAllSubjects();
-  document.getElementById('subject-pill-selector').innerHTML=allSubs.map(s=>`
+  const activeSubs=getAllSubjects().filter(s => !s.isFinished);
+  document.getElementById('subject-pill-selector').innerHTML=activeSubs.map(s=>`
     <div class="sub-pill" style="background:${s.key===selectedSubjectKey?s.color+'22':'var(--surface2)'};color:${s.key===selectedSubjectKey?s.color:'var(--text2)'};border:1.5px solid ${s.key===selectedSubjectKey?s.color:'transparent'}" onclick="selectSubject('${s.key}')">
       <span style="width:7px;height:7px;border-radius:50%;background:${s.color};display:inline-block"></span>${s.name}
     </div>`).join('');
@@ -875,14 +944,14 @@ function renderStudySessions(){
 
 function renderSubjectTimers(){
   const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
-  const wStart = toLocalISO(weekStartDate()); // 수정된 날짜 방식
+  const wStart = toLocalISO(weekStartDate()); 
   document.getElementById('subject-timer-list').innerHTML=allSubs.map(s=>{
     const todayE=timerSessions.filter(ts=>ts.subjectKey===s.key&&ts.date===todayStr()).reduce((a,ts)=>a+ts.elapsed,0);
     const actE=activeStudy&&studySessions.find(ss=>ss.id===activeStudy&&ss.subjectKey===s.key)?studyElapsed(studySessions.find(ss=>ss.id===activeStudy)):0;
     const weekE=timerSessions.filter(ts=>ts.subjectKey===s.key&&ts.date>=wStart).reduce((a,ts)=>a+ts.elapsed,0);
     return`<div class="study-session-item">
       <div class="session-dot" style="background:${s.color}"></div>
-      <div style="flex:1;font-size:13px">${s.name}</div>
+      <div style="flex:1;font-size:13px">${s.name} ${s.isFinished ? '<span style="font-size:10px;color:var(--text3)">(종강)</span>':''}</div>
       <div class="session-time">${(todayE+actE)>0?fmtSec(todayE+actE):'—'}</div>
       <div style="font-size:10px;color:var(--text3);min-width:44px;text-align:right;font-family:'DM Mono',monospace">${weekE>0?fmtH(weekE)+'/주':''}</div>
     </div>`;
@@ -891,7 +960,7 @@ function renderSubjectTimers(){
 
 // ── D-day ──
 function buildDday(targetId){
-  const all=[...exams,...getAllSubjects().filter(s=>s.examDate).map(s=>({name:s.name+' 시험',date:s.examDate}))];
+  const all=[...exams,...getAllSubjects().filter(s=>s.examDate && !s.isFinished).map(s=>({name:s.name+' 시험',date:s.examDate}))];
   all.sort((a,b)=>a.date.localeCompare(b.date));
   const upcoming=all.filter(e=>diffDays(e.date)>=0);
   const el=document.getElementById(targetId);if(!el)return;
@@ -915,7 +984,7 @@ function renderDailyStats(){
   const todayStudy=timerSessions.filter(s=>s.date===todayStr()).reduce((a,s)=>a+s.elapsed,0);
   const actAdd=activeStudy?studyElapsed(studySessions.find(s=>s.id===activeStudy)):0;
   const todayT=todos.filter(t=>t.date===todayStr());
-  const upcoming=[...exams,...getAllSubjects().filter(s=>s.examDate).map(s=>({name:s.name,date:s.examDate}))].filter(e=>diffDays(e.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))[0];
+  const upcoming=[...exams,...getAllSubjects().filter(s=>s.examDate && !s.isFinished).map(s=>({name:s.name,date:s.examDate}))].filter(e=>diffDays(e.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))[0];
   document.getElementById('daily-stats').innerHTML=`
     <div class="stat-card"><div class="stat-val">${todayT.filter(t=>t.done).length}/${todayT.length}</div><div class="stat-lbl">할 일 완료</div></div>
     <div class="stat-card"><div class="stat-val">${fmtSec(todayStudy+actAdd)}</div><div class="stat-lbl">오늘 공부</div></div>
@@ -936,14 +1005,13 @@ function renderTodos(){
   </div>`).join('');
 }
 
-// ── 주간 단일 렌더러 (2x4 요약박스 추가 및 타임존 오류 수정 반영) ──
+// ── 주간 단일 렌더러 ──
 function renderSingleWeekGrid(offsetWeeks, targetId){
   const dates = getWeekDates(offsetWeeks);
   const today = todayStr();
   const dayNames = ['월','화','수','목','금','토','일']; 
   const allSubs = [...getAllSubjects(),...PASSIVE_TYPES];
 
-  // 1. 주간 총 공부시간 계산
   let totalWeekSec = 0;
   let dayTimes = [0,0,0,0,0,0,0];
   dates.forEach((d, idx) => {
@@ -971,7 +1039,6 @@ function renderSingleWeekGrid(offsetWeeks, targetId){
     <div style="font-size:11px; width:100%;">${summaryContent}</div>
   </div>`;
 
-  // 2. 날짜별 박스 생성
   html += dates.map((d, idx)=>{
     const isToday = d === today;
     const daySessions = studySessions.filter(s => s.date === d);
@@ -1043,7 +1110,7 @@ document.addEventListener('dragend',()=>{
 
 // ── 캘린더 ──
 function renderCalendar(){
-  const today=new Date(todayStr() + 'T00:00:00'),y=today.getFullYear(),m=today.getMonth(); // 타임존 오류 방지
+  const today=new Date(todayStr() + 'T00:00:00'),y=today.getFullYear(),m=today.getMonth(); 
   document.getElementById('cal-title').textContent=`${y}년 ${m+1}월`;
   const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),todayD=today.getDate();
   const allSubs=[...getAllSubjects(),...PASSIVE_TYPES];
@@ -1115,18 +1182,18 @@ function closeDayModal(){document.getElementById('day-modal').classList.remove('
 function toggleModalTodo(id,ds){todos=todos.map(t=>t.id===id?{...t,done:!t.done}:t);scheduleSave();renderAll();window.openDayModal(ds);}
 function toggleModalStudy(id,ds){studySessions=studySessions.map(s=>s.id===id?{...s,done:!s.done}:s);scheduleSave();renderAll();window.openDayModal(ds);}
 
-// ── 통계 ──
+// ── 통계 (진행중인 과목만 그래프 바 차트 출력) ──
 function renderStats(){
-  const allSubs=getAllSubjects();
-  const wStart=toLocalISO(weekStartDate()); // 수정된 날짜 방식 적용
+  const activeSubs=getAllSubjects().filter(s => !s.isFinished);
+  const wStart=toLocalISO(weekStartDate()); 
   const done=todos.filter(t=>t.done).length,totalStudy=timerSessions.reduce((a,s)=>a+s.elapsed,0);
   document.getElementById('stats-grid').innerHTML=`
     <div class="stat-card"><div class="stat-val">${done}</div><div class="stat-lbl">완료한 할 일</div></div>
     <div class="stat-card"><div class="stat-val">${todos.length-done}</div><div class="stat-lbl">남은 할 일</div></div>
     <div class="stat-card"><div class="stat-val">${Math.round(totalStudy/3600)}h</div><div class="stat-lbl">누적 공부</div></div>
     <div class="stat-card"><div class="stat-val">${studySessions.filter(s=>s.done).length}</div><div class="stat-lbl">완료 항목</div></div>`;
-  const maxW=Math.max(...allSubs.map(s=>timerSessions.filter(ts=>ts.subjectKey===s.key&&ts.date>=wStart).reduce((a,ts)=>a+ts.elapsed,0)),1);
-  document.getElementById('bar-chart').innerHTML=`<div class="bar-wrap">${allSubs.map(s=>{const ws=timerSessions.filter(ts=>ts.subjectKey===s.key&&ts.date>=wStart).reduce((a,ts)=>a+ts.elapsed,0);return`<div class="bar-col"><div class="bar-val">${fmtH(ws)}</div><div class="bar" style="height:${Math.max(Math.round(ws/maxW*80),3)}px;background:${s.color}"></div><div class="bar-lbl">${s.name}</div></div>`}).join('')}</div>`;
+  const maxW=Math.max(...activeSubs.map(s=>timerSessions.filter(ts=>ts.subjectKey===s.key&&ts.date>=wStart).reduce((a,ts)=>a+ts.elapsed,0)),1);
+  document.getElementById('bar-chart').innerHTML=`<div class="bar-wrap">${activeSubs.map(s=>{const ws=timerSessions.filter(ts=>ts.subjectKey===s.key&&ts.date>=wStart).reduce((a,ts)=>a+ts.elapsed,0);return`<div class="bar-col"><div class="bar-val">${fmtH(ws)}</div><div class="bar" style="height:${Math.max(Math.round(ws/maxW*80),3)}px;background:${s.color}"></div><div class="bar-lbl">${s.name}</div></div>`}).join('')}</div>`;
   const up=exams.filter(e=>diffDays(e.date)>=0);
   document.getElementById('exam-list').innerHTML=up.length?`<div class="dday-chips">${up.map(e=>`<div class="dday-chip"><span>${e.name}</span><span class="dday-chip-cnt">D-${diffDays(e.date)}</span><span class="dday-chip-del" onclick="delExam(${e.id})">×</span></div>`).join('')}</div>`:'<div class="empty">시험을 추가해보세요</div>';
 }
@@ -1143,14 +1210,21 @@ function deleteSubject(key){
   if(!confirm('"'+sub.name+'" 과목을 삭제할까요?'))return;
   extraSubjects=extraSubjects.filter(s=>s.key!==key);
   if(checkData[key])delete checkData[key];
-  if(currentCheckTab===key){const rem=getAllSubjects();currentCheckTab=rem.length?rem[0].key:null;}
+  
+  const baseIdx = BASE_SUBJECTS.findIndex(s=>s.key===key);
+  if(baseIdx >= 0) BASE_SUBJECTS[baseIdx].isFinished = false; 
+
+  const rem=getAllSubjects().filter(s => s.isFinished === currentCheckFinishedMode);
+  currentCheckTab=rem.length?rem[0].key:null;
   scheduleSave();renderCheckTabs();renderCheckTable();
 }
 function renderCheckTabs(){
-  const allSubs=getAllSubjects();
+  const filteredSubs=getAllSubjects().filter(s => s.isFinished === currentCheckFinishedMode);
   const baseKeys=BASE_SUBJECTS.map(s=>s.key);
-  if(!currentCheckTab)currentCheckTab=allSubs[0]?.key;
-  document.getElementById('check-tabs').innerHTML=allSubs.map(s=>{
+  if(!currentCheckTab && filteredSubs.length > 0) currentCheckTab=filteredSubs[0].key;
+  if(filteredSubs.length === 0) currentCheckTab = null;
+
+  document.getElementById('check-tabs').innerHTML=filteredSubs.map(s=>{
     const isBase=baseKeys.includes(s.key);
     const delBtn=isBase?'':`<span onclick="event.stopPropagation();deleteSubject('${s.key}')" style="margin-left:4px;opacity:0.7;font-size:14px;cursor:pointer" title="삭제">×</span>`;
     return`<div class="stab ${currentCheckTab===s.key?'active':''}" data-key="${s.key}" onclick="switchCheckTab('${s.key}')" style="display:inline-flex;align-items:center">${s.name}${delBtn}</div>`;
@@ -1158,10 +1232,20 @@ function renderCheckTabs(){
 }
 function renderCheckTable(){
   const allSubs=getAllSubjects(),sd=allSubs.find(s=>s.key===currentCheckTab);
-  if(!sd){document.getElementById('check-table').innerHTML='<div class="empty">과목을 선택해주세요</div>';return;}
+  if(!sd || sd.isFinished !== currentCheckFinishedMode){document.getElementById('check-table').innerHTML='<div class="empty">해당 카테고리에 과목이 없습니다.</div>';document.getElementById('check-progress').innerHTML='';return;}
   const rows=sd.lectures||[],key=sd.key;
   const total=rows.length,done2=rows.filter(r=>getCell(key,r.no).study!=='').length,pct=total?Math.round(done2/total*100):0;
-  document.getElementById('check-progress').innerHTML=`<div class="prog-mini-wrap"><div class="prog-mini-bar"><div class="prog-mini-fill" style="width:${pct}%"></div></div><div class="prog-mini-txt">학습완료 ${done2}/${total} (${pct}%)</div></div>`;
+  
+  const finishBtnText = sd.isFinished ? '🔄 종강 취소' : '🎓 종강하기';
+  const finishBtnClass = sd.isFinished ? 'btn-success' : 'btn-danger';
+  
+  document.getElementById('check-progress').innerHTML=`
+    <div class="prog-mini-wrap">
+      <div class="prog-mini-bar"><div class="prog-mini-fill" style="width:${pct}%"></div></div>
+      <div class="prog-mini-txt">학습완료 ${done2}/${total} (${pct}%)</div>
+      <button class="btn ${finishBtnClass} btn-sm" onclick="toggleSubjectFinished('${key}')" style="margin-left:auto">${finishBtnText}</button>
+    </div>`;
+    
   const hasM=sd.hasManager;
   const th=`<tr><th>주차</th><th>날짜</th><th>번호</th><th style="text-align:left;min-width:160px">강의명</th><th>교수</th><th>시수</th>${hasM?'<th>정리담당</th>':''}<th>학습여부</th><th>복습</th><th>제트정리</th><th>정리본</th><th>족보중요<br><span style="font-size:9px;font-weight:400">(O+난이도)</span></th><th>암기확인</th><th>최종점검</th><th>특이사항</th></tr>`;
   const tbody=rows.map(r=>{
