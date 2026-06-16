@@ -94,11 +94,12 @@ input[type=text]:focus,input[type=date]:focus,input[type=time]:focus,select:focu
 .week-event:hover .week-event-del{opacity:0.6}
 .week-event-del:hover{opacity:1 !important;color:var(--red)}
 /* 공부 세션 */
-.study-session-item{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border)}
-.study-session-item:last-child{border-bottom:none}
+.study-session-item{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border);transition: background 0.1s;}
+.study-session-item:hover{background:rgba(0,0,0,0.01)}
 .session-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .session-name{font-size:13px;font-weight:500;white-space:nowrap}
-.session-task{font-size:12px;color:var(--text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.session-clickable-area{flex:1;min-width:0;display:flex;align-items:center;gap:8px;cursor:pointer}
+.session-task{font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .session-time{font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);white-space:nowrap}
 .session-time.active{color:var(--accent);font-weight:500}
 .passive-tag{font-size:10px;background:var(--purple-light);color:var(--purple);padding:1px 7px;border-radius:999px;white-space:nowrap}
@@ -239,6 +240,7 @@ function checkAppUnlock(){
     <div class="nav-section">강의 체크</div>
     <div class="nav-item" onclick="go('check')"><span class="nav-icon">🗂</span> 강의 체크표</div>
     <div class="nav-item" onclick="openAddSubjectModal()"><span class="nav-icon">➕</span> 과목 추가</div>
+    <div class="nav-item" onclick="openBulkImportModal()"><span class="nav-icon">📝</span> 대량 일정/할일 추가</div>
   </nav>
   <main class="main">
 
@@ -250,7 +252,7 @@ function checkAppUnlock(){
       <div class="two-col">
         <div>
           <div class="card">
-            <div class="card-title" style="margin-bottom:8px">📚 공부 기록</div>
+            <div class="card-title" style="margin-bottom:8px">📚 공부 기록 <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:4px">(항목 클릭시 수정 가능)</span></div>
             
             <div class="section-badge" style="background:var(--surface2); color:var(--text3);">어제 (<span id="lbl-yest"></span>)</div>
             <div id="study-list-yesterday" style="margin-bottom: 14px; opacity: 0.85;"></div>
@@ -373,6 +375,58 @@ function checkAppUnlock(){
   </main>
 </div>
 
+<!-- 대량 파싱 추가 모달 -->
+<div class="modal-bg" id="bulk-import-modal">
+  <div class="modal" style="width: 600px;">
+    <h2>📝 대량 일정/할일 추가</h2>
+    <p>학교 종합정보시스템 시간표를 그대로 복사해 붙여넣어 주세요.<br>
+    시험, 평가, 피드백, 보충수업, 인문학 특강은 자동으로 필터링되어 제외됩니다.</p>
+    <div style="margin-bottom:14px">
+      <textarea id="bulk-import-data" placeholder="예시:&#10;6/17(수)	09:00-09:50	1교시		급성중증의학	과목 소개 및 역사	문중범" style="height: 220px;"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeBulkImportModal()">취소</button>
+      <button class="btn btn-success" onclick="processBulkImport('todo')">✅ 할 일로 추가</button>
+      <button class="btn btn-primary" onclick="processBulkImport('study')">📚 공부기록으로 추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공부기록 내용/시간 수정 모달 -->
+<div class="modal-bg" id="edit-session-modal">
+  <div class="modal" style="width: 400px;">
+    <h2>✏️ 공부 기록 수정</h2>
+    <p style="margin-bottom: 12px;">공부 내용과 수행한 시간을 편집합니다.</p>
+    <input type="hidden" id="edit-session-id">
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:500;display:block;margin-bottom:4px">과목</label>
+      <input type="text" id="edit-session-subname" readonly style="width:100%; background:#f5f4f0; color:var(--text2)">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:500;display:block;margin-bottom:4px">공부 내용</label>
+      <input type="text" id="edit-session-task" style="width:100%">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:500;display:block;margin-bottom:4px">날짜</label>
+      <input type="date" id="edit-session-date" style="width:100%">
+    </div>
+    <div class="input-row" style="margin-bottom:16px; margin-top:0">
+      <div style="flex:1">
+        <label style="font-size:12px;font-weight:500;display:block;margin-bottom:4px">시작 시간</label>
+        <input type="time" id="edit-session-start" style="width:100%">
+      </div>
+      <div style="flex:1">
+        <label style="font-size:12px;font-weight:500;display:block;margin-bottom:4px">종료 시간</label>
+        <input type="time" id="edit-session-end" style="width:100%">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeEditSessionModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitEditSession()">저장하기</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="add-subject-modal">
   <div class="modal">
     <h2>📋 새 과목 추가</h2>
@@ -418,7 +472,6 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const docRef = db.collection("planner").doc("hajun");
 
-// ── 동기화 상태 ──
 function setSyncStatus(s){
   const el=document.getElementById('sync-status');
   if(s==='ok'){el.textContent='● 동기화됨';el.className='sync-status sync-ok';}
@@ -485,7 +538,7 @@ const BASE_SUBJECTS=[
     {week:'',date:'6/4',no:4,title:'약물대사와 간독성',prof:'박상인',hrs:1},
     {week:'',date:'6/4',no:5,title:'만성 간염+증례토의',prof:'이민종',hrs:2},
     {week:'',date:'6/4',no:6,title:'약물대사와 간독성+증례토의',prof:'이민종',hrs:1},
-    {week:'',date:'6/5',no:7,title:'알코올성/비알코올성 지방간 질환',prof:'김태식',hrs:1},
+    {week:'6/5',date:'6/5',no:7,title:'알코올성/비알코올성 지방간 질환',prof:'김태식',hrs:1},
     {week:'',date:'6/5',no:8,title:'유전성, 전신질환과 간질환, 간농양',prof:'김태식',hrs:1},
     {week:'',date:'6/5',no:9,title:'간종양',prof:'김태식',hrs:1},
     {week:'13',date:'6/8',no:10,title:'간경변증+증례토의',prof:'김태식',hrs:3},
@@ -494,15 +547,131 @@ const BASE_SUBJECTS=[
     {week:'',date:'6/10',no:13,title:'담즙생성과 담석의 발생기전',prof:'장성훈',hrs:1},
     {week:'',date:'6/10',no:14,title:'담낭 및 담도의 양성질환',prof:'장성훈',hrs:1},
     {week:'',date:'6/10',no:15,title:'담낭 및 담도의 악성질환',prof:'장성훈',hrs:1},
-    {week:'',date:'6/11',no:16,title:'췌장의 내외분비 기능',prof:'박진명',hrs:1},
+    {week:'6/11',date:'6/11',no:16,title:'췌장의 내외분비 기능',prof:'박진명',hrs:1},
     {week:'',date:'6/11',no:17,title:'췌장염+증례토의',prof:'박진명',hrs:2},
     {week:'',date:'6/11',no:18,title:'췌장종양',prof:'박진명',hrs:1},
-    {week:'',date:'6/12',no:19,title:'췌담도 질환 영상의학',prof:'전용환',hrs:1},
+    {week:'6/12',date:'6/12',no:19,title:'췌담도 질환 영상의학',prof:'전용환',hrs:1},
     {week:'',date:'6/12',no:20,title:'소화기종양 방사선 치료',prof:'이수민',hrs:1},
     {week:'',date:'6/12',no:21,title:'소아의 간담도 질환',prof:'홍지나',hrs:2},
     {week:'14',date:'6/15',no:22,title:'소화기질환 병리',prof:'류영준',hrs:2},
     {week:'',date:'6/15',no:23,title:'췌장의 외과적 치료',prof:'홍성권',hrs:1},
     {week:'',date:'6/15',no:24,title:'담도질환의 외과적 치료',prof:'홍성권',hrs:1},
+  ]},
+  {key:'acute_med',name:'급성중증의학',color:'#993556',examDate:'2026-07-10',hasManager:false,isFinished:false,lectures:[
+    {week:'',date:'6/17(수)',no:1,title:'과목 소개 및 역사',prof:'문중범',hrs:1},
+    {week:'',date:'6/17(수)',no:2,title:'중증응급의학',prof:'문중범',hrs:1},
+    {week:'',date:'6/17(수)',no:3,title:'중증응급의학',prof:'문중범',hrs:1},
+    {week:'',date:'6/17(수)',no:4,title:'중독학총론',prof:'문중범',hrs:1},
+    {week:'',date:'6/19(금)',no:5,title:'식중독, 동물교상',prof:'조준휘',hrs:1},
+    {week:'',date:'6/19(금)',no:6,title:'고온손상, 한랭손상',prof:'조준휘',hrs:1},
+    {week:'',date:'6/19(금)',no:7,title:'전기손상, 낙뢰손상, 익사',prof:'문중범',hrs:1},
+    {week:'',date:'6/19(금)',no:8,title:'성폭행과 가정폭력',prof:'이향아',hrs:1},
+    {week:'',date:'6/24(수)',no:9,title:'응급증상학',prof:'조준휘',hrs:1},
+    {week:'',date:'6/24(수)',no:10,title:'응급증상학',prof:'조준휘',hrs:1},
+    {week:'',date:'6/24(수)',no:11,title:'응급증상학',prof:'조준휘',hrs:1},
+    {week:'',date:'6/24(수)',no:12,title:'응급증상학',prof:'조준휘',hrs:1},
+    {week:'',date:'6/26(금)',no:13,title:'척추손상',prof:'김충효',hrs:1},
+    {week:'',date:'6/26(금)',no:14,title:'두부손상',prof:'이승진',hrs:1},
+    {week:'',date:'6/26(금)',no:15,title:'안면부, 경부손상',prof:'성건용',hrs:1},
+    {week:'',date:'7/1(수)',no:16,title:'비뇨기계손상',prof:'이상욱',hrs:1},
+    {week:'',date:'7/1(수)',no:17,title:'전문외상처치술(ATLS) (영상수업)',prof:'문중범',hrs:1},
+    {week:'',date:'7/1(수)',no:18,title:'재난, 응급의료체계 (영상수업)',prof:'문중범',hrs:1},
+    {week:'',date:'7/3(금)',no:19,title:'흉부손상',prof:'류세민',hrs:1},
+    {week:'',date:'7/3(금)',no:20,title:'두부손상',prof:'이승진',hrs:1},
+    {week:'',date:'7/3(금)',no:21,title:'복부손상',prof:'채기봉',hrs:1},
+    {week:'',date:'7/8(수)',no:22,title:'약물중독, 알코올중독',prof:'신명철',hrs:1},
+    {week:'',date:'7/8(수)',no:23,title:'약물중독, 알코올중독',prof:'신명철',hrs:1},
+    {week:'',date:'7/8(수)',no:24,title:'약물중독, 알코올중독',prof:'신명철',hrs:1},
+    {week:'',date:'7/10(금)',no:25,title:'제초제, 살충제 중독',prof:'문중범',hrs:1},
+    {week:'',date:'7/10(금)',no:26,title:'유기용제, 유해가스, 중금속, 독극물',prof:'문중범',hrs:1},
+    {week:'',date:'7/10(금)',no:27,title:'유기용제, 유해가스, 중금속, 독극물',prof:'문중범',hrs:1}
+  ]},
+  {key:'endo',name:'내분비학',color:'#6d28d9',examDate:'2026-07-16',hasManager:false,isFinished:false,lectures:[
+    {week:'',date:'6/17(수)',no:1,title:'내분비 대사 조절 기전과 내분비 역동검사',prof:'김상욱',hrs:1},
+    {week:'',date:'6/17(수)',no:2,title:'뇌하수체 전엽 종양 (1) 유즙분비종양과 말단비대증',prof:'김상욱',hrs:1},
+    {week:'',date:'6/17(수)',no:3,title:'항이뇨호르몬(AVP)',prof:'김상욱',hrs:1},
+    {week:'',date:'6/18(목)',no:4,title:'뇌하수체 전엽 종양 (2) 쿠싱병과 비기능성 선종',prof:'김상욱',hrs:1},
+    {week:'',date:'6/18(목)',no:5,title:'여성 성선기능저하증과 폐경',prof:'김상욱',hrs:1},
+    {week:'',date:'6/18(목)',no:6,title:'의원성 쿠싱증후군과 남성 성선기능저하증',prof:'김상욱',hrs:1},
+    {week:'',date:'6/22(월)',no:7,title:'뇌하수체 질환의 수술',prof:'김인경',hrs:1},
+    {week:'',date:'6/22(월)',no:8,title:'칼슘 대사와 조절',prof:'김상욱',hrs:1},
+    {week:'',date:'6/22(월)',no:9,title:'부갑상선 질환',prof:'김상욱',hrs:1},
+    {week:'',date:'6/23(화)',no:10,title:'갑상선의 구조와 기능',prof:'-',hrs:1},
+    {week:'',date:'6/23(화)',no:11,title:'갑상선 결절과 암',prof:'-',hrs:1},
+    {week:'',date:'6/23(화)',no:12,title:'갑상선중독증',prof:'-',hrs:1},
+    {week:'',date:'6/23(화)',no:13,title:'갑상선기능저하증, 임신과 갑상선질환',prof:'-',hrs:1},
+    {week:'',date:'6/24(수)',no:14,title:'부신피질의 구조와 기능, 부신기능저하증',prof:'김상욱',hrs:1},
+    {week:'',date:'6/24(수)',no:15,title:'쿠싱증후군, 알도스테론증',prof:'김상욱',hrs:1},
+    {week:'',date:'6/24(수)',no:16,title:'갈색세포종, 부신우연종',prof:'김상욱',hrs:1},
+    {week:'',date:'6/25(목)',no:17,title:'내분비질환의 수술',prof:'김환수',hrs:1},
+    {week:'',date:'6/25(목)',no:18,title:'MEN, 헤모크로마토시스, 포르피리아',prof:'김상욱',hrs:1},
+    {week:'',date:'6/29(월)',no:19,title:'지단백 대사',prof:'박원선',hrs:1},
+    {week:'',date:'6/29(월)',no:20,title:'이상지질혈증의 진단과 치료',prof:'김상욱',hrs:1},
+    {week:'',date:'7/1(수)',no:21,title:'포도당 대사와 당뇨병 관련 검사의 이해',prof:'김상욱',hrs:1},
+    {week:'',date:'7/1(수)',no:22,title:'당뇨병의 진단과 분류',prof:'김상욱',hrs:1},
+    {week:'',date:'7/1(수)',no:23,title:'2형 당뇨병의 병태생리',prof:'김상욱',hrs:1},
+    {week:'',date:'7/2(목)',no:24,title:'1형 당뇨병과 기타 당뇨병',prof:'김상욱',hrs:1},
+    {week:'',date:'7/2(목)',no:25,title:'고혈당 위기: DKA와 HHS',prof:'김상욱',hrs:1},
+    {week:'',date:'7/2(목)',no:26,title:'임신성 당뇨병과 당뇨병 환자의 임신',prof:'김상욱',hrs:1},
+    {week:'',date:'7/6(월)',no:27,title:'당뇨병 망막병증',prof:'정영훈',hrs:1},
+    {week:'',date:'7/6(월)',no:28,title:'당뇨병 신장병증',prof:'박지인',hrs:1},
+    {week:'',date:'7/6(월)',no:29,title:'당뇨병 신경병증',prof:'김상욱',hrs:1},
+    {week:'',date:'7/7(화)',no:30,title:'당뇨병의 관리: 환자 평가와 치료 전략 수립',prof:'조은희',hrs:1},
+    {week:'',date:'7/7(화)',no:31,title:'당뇨병의 치료: 식사와 운동',prof:'조은희',hrs:1},
+    {week:'',date:'7/8(수)',no:32,title:'당뇨병의 치료: 경구혈당강하제',prof:'조은희',hrs:1},
+    {week:'',date:'7/8(수)',no:33,title:'저혈당',prof:'조은희',hrs:1},
+    {week:'',date:'7/8(수)',no:34,title:'당뇨병과 심혈관질환',prof:'이봉기',hrs:1},
+    {week:'',date:'7/9(목)',no:35,title:'골대사와 골질환',prof:'김하영',hrs:1},
+    {week:'',date:'7/9(목)',no:36,title:'골다공증의 치료',prof:'김하영',hrs:1},
+    {week:'',date:'7/9(목)',no:37,title:'골다공증의 진단',prof:'김하영',hrs:1},
+    {week:'',date:'7/13(월)',no:38,title:'당뇨병의 주사 치료: 인슐린',prof:'김상욱',hrs:1},
+    {week:'',date:'7/13(월)',no:39,title:'당뇨병의 주사 치료: 인크레틴',prof:'김상욱',hrs:1},
+    {week:'',date:'7/14(화)',no:40,title:'당뇨병 증례토의 1',prof:'조은희',hrs:1},
+    {week:'',date:'7/14(화)',no:41,title:'당뇨병 증례토의 2',prof:'조은희',hrs:1},
+    {week:'',date:'7/14(화)',no:42,title:'당뇨병 증례토의 3',prof:'조은희',hrs:1},
+    {week:'',date:'7/15(수)',no:43,title:'증례로 배우는 내분비학 1',prof:'김상욱',hrs:1},
+    {week:'',date:'7/15(수)',no:44,title:'증례로 배우는 내분비학 2',prof:'김상욱',hrs:1}
+  ]},
+  {key:'infection',name:'인체와 감염III',color:'#0f6e6e',examDate:'2026-07-16',hasManager:false,isFinished:false,lectures:[
+    {week:'',date:'6/19(금)',no:1,title:'체온조절과 발열',prof:'전용덕',hrs:1},
+    {week:'',date:'6/19(금)',no:2,title:'불명열',prof:'전용덕',hrs:1},
+    {week:'',date:'6/19(금)',no:3,title:'신종감염병',prof:'전용덕',hrs:1},
+    {week:'',date:'6/22(월)',no:4,title:'감염질환의 진단적 검사',prof:'유숙원',hrs:1},
+    {week:'',date:'6/22(월)',no:5,title:'감염질환의 진단적 검사',prof:'유숙원',hrs:1},
+    {week:'',date:'6/22(월)',no:6,title:'병원감염관리',prof:'전용덕',hrs:1},
+    {week:'',date:'6/23(화)',no:7,title:'발열과 발진',prof:'이용희',hrs:1},
+    {week:'',date:'6/23(화)',no:8,title:'발열과 발진',prof:'이용희',hrs:1},
+    {week:'',date:'6/23(화)',no:9,title:'예방접종 총론',prof:'이용희',hrs:1},
+    {week:'',date:'6/25(목)',no:10,title:'항균제',prof:'오원섭',hrs:1},
+    {week:'',date:'6/25(목)',no:11,title:'항균제',prof:'오원섭',hrs:1},
+    {week:'',date:'6/25(목)',no:12,title:'항바이러스제',prof:'오원섭',hrs:1},
+    {week:'',date:'6/26(금)',no:13,title:'요로감염증 증례발표',prof:'김창협',hrs:1},
+    {week:'',date:'6/26(금)',no:14,title:'요로감염증',prof:'김창협',hrs:1},
+    {week:'',date:'6/26(금)',no:15,title:'요로감염증',prof:'김창협',hrs:1},
+    {week:'',date:'6/29(월)',no:16,title:'야외활동관련감염증 증례발표',prof:'전용덕',hrs:1},
+    {week:'',date:'6/29(월)',no:17,title:'야외활동관련감염증',prof:'전용덕',hrs:1},
+    {week:'',date:'6/30(화)',no:18,title:'패혈증/심내막염 증례발표',prof:'오원섭',hrs:1},
+    {week:'',date:'6/30(화)',no:19,title:'패혈증/심내막염',prof:'오원섭',hrs:1},
+    {week:'',date:'7/3(금)',no:20,title:'진균감염증 증례발표',prof:'김창협',hrs:1},
+    {week:'',date:'7/3(금)',no:21,title:'진균감염증/항진균제',prof:'김창협',hrs:1},
+    {week:'',date:'7/6(월)',no:22,title:'소아 호흡기감염증 증례발표',prof:'이용희',hrs:1},
+    {week:'',date:'7/6(월)',no:23,title:'소아 호흡기감염증',prof:'이용희',hrs:1},
+    {week:'',date:'7/6(월)',no:24,title:'성인 호흡기감염증',prof:'전용덕',hrs:1},
+    {week:'',date:'7/7(화)',no:25,title:'중추신경계감염증 증례발표',prof:'오원섭',hrs:1},
+    {week:'',date:'7/7(화)',no:26,title:'성인 중추신경계감염증',prof:'오원섭',hrs:1},
+    {week:'',date:'7/7(화)',no:27,title:'소아 중추신경계감염증',prof:'이용희',hrs:1},
+    {week:'',date:'7/9(목)',no:28,title:'피부/연조직/골관절감염증 증례발표',prof:'오원섭',hrs:1},
+    {week:'',date:'7/9(목)',no:29,title:'피부/연조직/골관절감염증',prof:'오원섭',hrs:1},
+    {week:'',date:'7/9(목)',no:30,title:'피부/연조직/골관절감염증',prof:'오원섭',hrs:1},
+    {week:'',date:'7/10(금)',no:31,title:'성매개감염증 증례발표',prof:'김창협',hrs:1},
+    {week:'',date:'7/10(금)',no:32,title:'성매개감염증',prof:'김창협',hrs:1},
+    {week:'',date:'7/10(금)',no:33,title:'성매개감염증',prof:'김창협',hrs:1},
+    {week:'',date:'7/13(월)',no:34,title:'HIV/AIDS 증례발표',prof:'전용덕',hrs:1},
+    {week:'',date:'7/13(월)',no:35,title:'HIV/AIDS',prof:'전용덕',hrs:1},
+    {week:'',date:'7/13(월)',no:36,title:'HIV/AIDS',prof:'전용덕',hrs:1},
+    {week:'',date:'7/14(화)',no:37,title:'급성설사 증례발표',prof:'김창협',hrs:1},
+    {week:'',date:'7/14(화)',no:38,title:'성인 급성설사/식중독',prof:'김창협',hrs:1},
+    {week:'',date:'7/14(화)',no:39,title:'소아 급성설사',prof:'이용희',hrs:1}
   ]}
 ];
 
@@ -630,6 +799,219 @@ function addTodo(){
 function toggleTodo(id){todos=todos.map(t=>t.id===id?{...t,done:!t.done}:t);scheduleSave();renderAll();}
 function delTodo(id){todos=todos.filter(t=>t.id!==id);scheduleSave();renderAll();}
 function todoPct(){const t=todos.filter(t=>t.date===todayStr());return t.length?Math.round(t.filter(t=>t.done).length/t.length*100):0}
+
+// ── 대량 일정/할 일 텍스트 파싱 처리기 ──
+function openBulkImportModal(){ document.getElementById('bulk-import-modal').classList.add('open'); }
+function closeBulkImportModal(){ document.getElementById('bulk-import-modal').classList.remove('open'); document.getElementById('bulk-import-data').value=''; }
+
+function processBulkImport(type) {
+  const rawText = document.getElementById('bulk-import-data').value.trim();
+  if(!rawText) return alert('텍스트를 입력해주세요.');
+  
+  const lines = rawText.split('\n');
+  const allSubs = getAllSubjects();
+  let addCount = 0;
+  const currentYear = new Date().getFullYear();
+
+  lines.forEach((line, idx) => {
+    const parts = line.split('\t');
+    if(parts.length < 5) return; // 유효하지 않은 줄 패스
+
+    const rawDate = parts[0].trim(); // 예: "6/17(수)"
+    const rawTime = parts[1].trim(); // 예: "09:00-09:50"
+    let subName = parts[3].trim();   // 예: "급성중증의학" 또는 "내분비학"
+    let taskName = parts[4].trim();  // 예: "과목 소개 및 역사"
+    
+    // 만약 3번째 컬럼이 비어있어서 밀린 경우 보정
+    if(subName === "" && parts[4]) {
+      subName = parts[4].trim();
+      if(parts[5]) taskName = parts[5].trim();
+    }
+
+    // [필터링 조건] 평가, 시험, 피드백, 보충수업, 인문학 특강 제외
+    if (
+      subName.includes('평가') || taskName.includes('평가') ||
+      subName.includes('시험') || taskName.includes('시험') ||
+      taskName.includes('중간고사') || taskName.includes('기말고사') ||
+      taskName.includes('피드백') || taskName.includes('보충수업') ||
+      taskName.includes('인문학')
+    ) {
+      return; 
+    }
+
+    // 날짜 매칭 및 ISO 포맷 변환 (M/D 형식 파싱)
+    const dateMatch = rawDate.match(/(\d+)\/(\d+)/);
+    if(!dateMatch) return;
+    const targetDate = `${currentYear}-${dateMatch[1].padStart(2,'0')}-${dateMatch[2].padStart(2,'0')}`;
+
+    // 시간 파싱 (시작-종료 추출 및 소요시간 계산)
+    const timeMatch = rawTime.match(/(\d{2}:\d{2})-(\d{2}:\d{2})/);
+    let startTime = "09:00", endTime = "09:50", elapsedSec = 3000; // 기본 50분 세팅
+    let physicalStart = null, physicalEnd = null;
+
+    if(timeMatch) {
+      startTime = timeMatch[1];
+      endTime = timeMatch[2];
+      
+      const startMin = timeToMin(startTime), endMin = timeToMin(endTime);
+      physicalStart = new Date(targetDate + 'T' + startTime + ':00');
+      physicalEnd = new Date(targetDate + 'T' + endTime + ':00');
+      
+      if(startMin < 5*60) physicalStart.setDate(physicalStart.setDate() + 1);
+      if(endMin < 5*60) physicalEnd.setDate(physicalEnd.setDate() + 1);
+      if(physicalEnd < physicalStart) physicalEnd.setDate(physicalEnd.getDate() + 1);
+      
+      elapsedSec = ((physicalEnd.getTime() - physicalStart.getTime()) / 1000);
+    } else {
+      physicalStart = new Date(targetDate + 'T' + startTime + ':00');
+      physicalEnd = new Date(targetDate + 'T' + endTime + ':00');
+    }
+
+    // 플래너에 등록된 타겟 과목 검색
+    let matchedSub = allSubs.find(s => s.name === subName);
+    let subKey = matchedSub ? matchedSub.key : '_lecture'; 
+    let subRealName = matchedSub ? matchedSub.name : subName;
+
+    if(type === 'study') {
+      // 공부 기록 및 타임라인 동시 삽입
+      const id = Date.now() + idx * 2;
+      studySessions.push({
+        id, 
+        subjectKey: subKey, 
+        subjectName: subRealName, 
+        task: taskName, 
+        date: targetDate,
+        startTs: physicalStart.getTime(), 
+        endTs: physicalEnd.getTime(), 
+        elapsed: elapsedSec * 1000, 
+        done: false, 
+        active: false, 
+        passive: (subKey === '_lecture'), 
+        manualStart: startTime, 
+        manualEnd: endTime
+      });
+
+      timerSessions.push({
+        id: id + 1, 
+        studySessionId: id, 
+        subjectKey: subKey, 
+        startTs: physicalStart.getTime(), 
+        endTs: physicalEnd.getTime(), 
+        elapsed: elapsedSec, 
+        date: targetDate
+      });
+    } else if(type === 'todo') {
+      // 오늘의 할 일로 분산 추가
+      todos.push({
+        id: Date.now() + idx,
+        text: `[${subRealName}] ${taskName} (${startTime}~${endTime})`,
+        done: false,
+        prio: '보통',
+        date: targetDate
+      });
+    }
+    addCount++;
+  });
+
+  if(addCount > 0) {
+    alert(`${addCount}개의 항목이 플래너에 완벽히 반영되었습니다.`);
+    scheduleSave();
+    renderAll();
+    closeBulkImportModal();
+  } else {
+    alert('추가할 수 있는 유효한 의학 강의 데이터가 없습니다.');
+  }
+}
+
+// ── 공부 기록 수정 모달 제어 함수 ──
+function openEditSessionModal(id) {
+  const s = studySessions.find(item => String(item.id) === String(id));
+  if(!s) return;
+  if(s.active) return alert('현재 타이머가 구동 중인 항목은 수정할 수 없습니다. 중지 후 시도해주세요.');
+
+  document.getElementById('edit-session-id').value = s.id;
+  document.getElementById('edit-session-subname').value = s.subjectName;
+  document.getElementById('edit-session-task').value = s.task;
+  document.getElementById('edit-session-date').value = s.date;
+  document.getElementById('edit-session-start').value = s.manualStart || "00:00";
+  document.getElementById('edit-session-end').value = s.manualEnd || "00:00";
+
+  document.getElementById('edit-session-modal').classList.add('open');
+}
+
+function closeEditSessionModal() {
+  document.getElementById('edit-session-modal').classList.remove('open');
+}
+
+function submitEditSession() {
+  const id = document.getElementById('edit-session-id').value;
+  const task = document.getElementById('edit-session-task').value.trim();
+  const sDate = document.getElementById('edit-session-date').value;
+  const startT = document.getElementById('edit-session-start').value;
+  const endT = document.getElementById('edit-session-end').value;
+
+  if(!task || !sDate || !startT || !endT) return alert('모든 필드를 올바르게 입력해주세요.');
+
+  const startMin = timeToMin(startT), endMin = timeToMin(endT);
+  let physicalStart = new Date(sDate + 'T' + startT + ':00');
+  let physicalEnd = new Date(sDate + 'T' + endT + ':00');
+
+  if(startMin < 5 * 60) physicalStart.setDate(physicalStart.getDate() + 1);
+  if(endMin < 5 * 60) physicalEnd.setDate(physicalEnd.getDate() + 1);
+  if(physicalEnd < physicalStart) physicalEnd.setDate(physicalEnd.getDate() + 1);
+
+  const diffMin = (physicalEnd.getTime() - physicalStart.getTime()) / 60000;
+  const elapsed = diffMin * 60; // 초 단위 계산
+
+  // 1. studySessions 데이터 갱신
+  studySessions = studySessions.map(s => {
+    if(String(s.id) === String(id)) {
+      return {
+        ...s,
+        task: task,
+        date: sDate,
+        startTs: physicalStart.getTime(),
+        endTs: physicalEnd.getTime(),
+        elapsed: elapsed * 1000,
+        manualStart: startT,
+        manualEnd: endT
+      };
+    }
+    return s;
+  });
+
+  // 2. 연동된 타임라인 기록(timerSessions) 데이터도 동시 갱신 처리
+  let hasTimer = timerSessions.some(ts => String(ts.studySessionId) === String(id));
+  if(hasTimer) {
+    timerSessions = timerSessions.map(ts => {
+      if(String(ts.studySessionId) === String(id)) {
+        return {
+          ...ts,
+          date: sDate,
+          startTs: physicalStart.getTime(),
+          endTs: physicalEnd.getTime(),
+          elapsed: elapsed
+        };
+      }
+      return ts;
+    });
+  } else {
+    // 만약 타이머 기반 세션이었는데 처음 수동 수정을 가해 타임라인 영역 블록을 할당해야 하는 경우 예외 대응
+    timerSessions.push({
+      id: Date.now(),
+      studySessionId: parseInt(id),
+      subjectKey: studySessions.find(s => String(s.id) === String(id))?.subjectKey || '_lecture',
+      startTs: physicalStart.getTime(),
+      endTs: physicalEnd.getTime(),
+      elapsed: elapsed,
+      date: sDate
+    });
+  }
+
+  closeEditSessionModal();
+  scheduleSave();
+  renderAll();
+}
 
 // ── 공부 세션 ──
 function selectSubject(key){selectedSubjectKey=key;renderSubjectPills();}
@@ -914,12 +1296,14 @@ function renderSessionList(targetDateStr, containerId, isToday) {
     const passiveTag = s.passive ? `<span class="passive-tag">수업</span>` : '';
     return `<div class="study-session-item">
       <input type="checkbox" class="todo-cb" ${s.done ? 'checked' : ''} onchange="toggleStudyDone(${s.id})">
-      <div class="session-dot" style="background:${color}"></div>
-      <div class="session-name" style="color:${color}">${s.subjectName}</div>
-      ${passiveTag}
-      <div class="session-task${s.done ? ' todo-text done' : ''}">${s.task}</div>
-      ${timeLabel}
-      <div class="session-time${s.active ? ' active' : ''}">${s.manualStart ? fmtSec(elapsed) : elapsed > 0 ? fmtSec(elapsed) : ''}</div>
+      <div class="session-clickable-area" onclick="openEditSessionModal(${s.id})">
+        <div class="session-dot" style="background:${color}"></div>
+        <div class="session-name" style="color:${color}">${s.subjectName}</div>
+        ${passiveTag}
+        <div class="session-task${s.done ? ' todo-text done' : ''}">${s.task}</div>
+        ${timeLabel}
+        <div class="session-time${s.active ? ' active' : ''}">${s.manualStart ? fmtSec(elapsed) : elapsed > 0 ? fmtSec(elapsed) : ''}</div>
+      </div>
       ${!s.manualStart ? (s.active ? `<button class="btn btn-danger btn-sm" onclick="stopStudy(${s.id})">■ 중지</button>` : `<button class="btn btn-success btn-sm" onclick="startStudy(${s.id})">▶ 시작</button>`) : ''}
       <button class="btn btn-sm" onclick="delStudySession(${s.id})">×</button>
     </div>`;
@@ -1035,7 +1419,7 @@ function renderSingleWeekGrid(offsetWeeks, targetId){
   summaryContent += `<div style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--border2); font-weight:700; color:var(--accent); display:flex; justify-content:space-between;"><span>총</span><span style="font-family:'DM Mono',monospace">${fmtKor(totalWeekSec)}</span></div>`;
 
   let html = `<div class="week-day" style="background:var(--surface); border:1.5px solid var(--border); padding:10px; cursor:default;">
-    <div style="font-size:12px; font-weight:700; margin-bottom:8px; text-align:center; color:var(--text);">📊 주간 공부시간</div>
+    <div style="font-size:12px; font-weight:700; margin-bottom:8px; text-align:center; color:var(--text);;">📊 주간 공부시간</div>
     <div style="font-size:11px; width:100%;">${summaryContent}</div>
   </div>`;
 
@@ -1096,6 +1480,7 @@ function onDrop(e,targetDate){
   if(!dragType||!dragId)return;
   if(dragType==='study'){
     studySessions=studySessions.map(s=>String(s.id)===String(dragId)?{...s,date:targetDate}:s);
+    timerSessions=timerSessions.map(ts=>String(ts.studySessionId)===String(dragId)?{...ts,date:targetDate}:ts);
   } else if(dragType==='todo'){
     todos=todos.map(t=>String(t.id)===String(dragId)?{...t,date:targetDate}:t);
   }
@@ -1160,8 +1545,8 @@ function openDayModal(ds){
       return`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:${c}12;border-radius:8px;margin-bottom:5px">
         <input type="checkbox" class="todo-cb" ${s.done?'checked':''} onchange="toggleModalStudy(${s.id},'${ds}')">
         <span style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0"></span>
-        <span style="font-size:13px;font-weight:500;color:${c};${s.done?'text-decoration:line-through;opacity:0.6':''}">${s.subjectName}</span>
-        <span style="font-size:12px;color:var(--text2);flex:1;${s.done?'text-decoration:line-through;opacity:0.6':''}">${s.task}</span>
+        <span style="font-size:13px;font-weight:500;color:${c};cursor:pointer;${s.done?'text-decoration:line-through;opacity:0.6':''}" onclick="closeDayModal();openEditSessionModal(${s.id})">${s.subjectName}</span>
+        <span style="font-size:12px;color:var(--text2);flex:1;cursor:pointer;${s.done?'text-decoration:line-through;opacity:0.6':''}" onclick="closeDayModal();openEditSessionModal(${s.id})">${s.task}</span>
         ${tLabel}${s.passive?`<span class="passive-tag">수업</span>`:''}
       </div>`;
     }).join('');
@@ -1182,7 +1567,7 @@ function closeDayModal(){document.getElementById('day-modal').classList.remove('
 function toggleModalTodo(id,ds){todos=todos.map(t=>t.id===id?{...t,done:!t.done}:t);scheduleSave();renderAll();window.openDayModal(ds);}
 function toggleModalStudy(id,ds){studySessions=studySessions.map(s=>s.id===id?{...s,done:!s.done}:s);scheduleSave();renderAll();window.openDayModal(ds);}
 
-// ── 통계 (진행중인 과목만 그래프 바 차트 출력) ──
+// ── 통계 ──
 function renderStats(){
   const activeSubs=getAllSubjects().filter(s => !s.isFinished);
   const wStart=toLocalISO(weekStartDate()); 
@@ -1246,7 +1631,6 @@ function renderCheckTable(){
       <button class="btn ${finishBtnClass} btn-sm" onclick="toggleSubjectFinished('${key}')" style="margin-left:auto">${finishBtnText}</button>
     </div>`;
     
-  const hasM=sd.hasManager;
   const th=`<tr><th>주차</th><th>날짜</th><th>번호</th><th style="text-align:left;min-width:160px">강의명</th><th>교수</th><th>시수</th>${hasM?'<th>정리담당</th>':''}<th>학습여부</th><th>복습</th><th>제트정리</th><th>정리본</th><th>족보중요<br><span style="font-size:9px;font-weight:400">(O+난이도)</span></th><th>암기확인</th><th>최종점검</th><th>특이사항</th></tr>`;
   const tbody=rows.map(r=>{
     const c=getCell(key,r.no);
@@ -1255,6 +1639,7 @@ function renderCheckTable(){
     const jbCell=`<div class="jb-cell"><button class="ox-btn ${c.jb?'o':''}" onclick="toggleOX('${key}',${r.no},'jb')">${c.jb?'O':'—'}</button>${c.jb?`<div style="display:flex;gap:2px">${diffBtns}</div>`:''}</div>`;
     const reviewBtn = `<button class="ox-btn ${c.review?'o':''}" onclick="toggleOX('${key}',${r.no},'review')">${c.review?'O':'—'}</button>`;
     const remarkInput = `<input type="text" class="remark-input" value="${c.remark||''}" onchange="updateRemark('${key}',${r.no},this.value)" placeholder="...">`;
+    const hasM = sd.hasManager;
     
     return`<tr class="${r.imp?'imp':''}"><td class="week-cell">${r.week}</td><td class="week-cell">${r.date||''}</td><td style="color:var(--text3);font-size:11px;font-family:'DM Mono',monospace">${r.no}</td><td class="title-cell">${r.title}</td><td style="white-space:nowrap;font-size:12px">${r.prof}</td><td style="font-size:12px">${r.hrs}</td>${hasM?`<td><span style="font-size:10px;background:var(--surface2);padding:2px 7px;border-radius:999px;color:var(--text2)">${r.manager||''}</span></td>`:''}<td><div class="study-btn-group">${studyBtns}</div></td><td>${reviewBtn}</td><td><button class="ox-btn ${c.jet?'o':''}" onclick="toggleOX('${key}',${r.no},'jet')">${c.jet?'O':'—'}</button></td><td><button class="ox-btn ${c.note?'o':''}" onclick="toggleOX('${key}',${r.no},'note')">${c.note?'O':'—'}</button></td><td>${jbCell}</td><td><button class="ox-btn ${c.memo?'o':''}" onclick="toggleOX('${key}',${r.no},'memo')">${c.memo?'O':'—'}</button></td><td><button class="ox-btn ${c.final?'o':''}" onclick="toggleOX('${key}',${r.no},'final')">${c.final?'O':'—'}</button></td><td>${remarkInput}</td></tr>`;
   }).join('');
