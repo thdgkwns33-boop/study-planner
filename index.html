@@ -741,6 +741,8 @@ async function driveSearch(query){
 function drvErr(e){
   const c=e&&e.code;
   if(c==="needs_reauth") return "구글 드라이브 연결이 만료됐어요. 아래 버튼을 누르면 다시 연결돼요.";
+  if(c==="needs_scope") return "드라이브 읽기 권한이 빠져 있어요. 아래 버튼을 누르면 구글 창이 다시 뜨는데, 'Google Drive 파일 정보 보기' 체크박스를 꼭 체크하고 계속을 눌러 주세요.";
+  if(c==="api_off") return "Google Cloud에서 Drive API가 아직 켜지지 않았어요. 켠 직후라면 몇 분 뒤에 다시 눌러 주세요.";
   if(c==="server_not_connected") return "구글 드라이브가 연결돼 있지 않아요. 아래 버튼을 눌러 연결해 주세요.";
   if(c==="not_in_manifest"||c==="consent_required") return "이 페이지에 드라이브 접근이 허용되지 않았어요. 아래 버튼을 눌러 다시 허용해 주세요.";
   if(c==="selection_required") return "연결된 구글 드라이브가 여러 개예요. 뜨는 창에서 하나를 골라 주세요.";
@@ -1195,7 +1197,10 @@ const isStandalone=()=>window.navigator.standalone===true||window.matchMedia("(d
 function tokenGet(){ try{ const t=JSON.parse(localStorage.getItem("hjbot:gtoken")||"null"); if(t&&t.exp>Date.now()) return t.v; }catch(e){} return null; }
 function tokenSave(v){ try{ localStorage.setItem("hjbot:gtoken",JSON.stringify({v,exp:Date.now()+55*60*1000})); }catch(e){} }
 function tokenClear(){ try{ localStorage.removeItem("hjbot:gtoken"); }catch(e){} }
-function googleProvider(){ const p=new firebase.auth.GoogleAuthProvider(); p.addScope(DRIVE_SCOPE); if(firebase.auth().currentUser) p.setCustomParameters({login_hint:firebase.auth().currentUser.email}); return p; }
+function googleProvider(){ const p=new firebase.auth.GoogleAuthProvider(); p.addScope(DRIVE_SCOPE); const cp={};
+  if(firebase.auth().currentUser) cp.login_hint=firebase.auth().currentUser.email;
+  try{ if(localStorage.getItem("hjbot:needconsent")==="1"){ cp.prompt="consent"; localStorage.removeItem("hjbot:needconsent"); } }catch(_){}
+  p.setCustomParameters(cp); return p; }
 async function googleSignIn(){
   const auth=firebase.auth(), p=googleProvider();
   if(isStandalone()){ sessionStorage.setItem("hjbot:return",location.hash||""); await auth.signInWithRedirect(p); return null; }
@@ -1210,7 +1215,9 @@ const driveAdapter={ async callTool(_s,_t,input){
   if(input.pageToken) ps.set("pageToken",input.pageToken);
   const r=await fetch("https://www.googleapis.com/drive/v3/files?"+ps,{headers:{Authorization:"Bearer "+tok}});
   if(r.status===401){ tokenClear(); throw {code:"needs_reauth"}; }
-  if(r.status===403) throw {code:"not_in_manifest"};
+  if(r.status===403){ let reason=""; try{ const e=await r.json(); reason=JSON.stringify(e); }catch(_){}
+    if(/accessNotConfigured|SERVICE_DISABLED|has not been used/i.test(reason)) throw {code:"api_off"};
+    tokenClear(); try{ localStorage.setItem("hjbot:needconsent","1"); }catch(_){} throw {code:"needs_scope"}; }
   if(!r.ok) throw {code:"server_unavailable"};
   const j=await r.json();
   return {payload:{files:(j.files||[]).map(f=>({id:f.id,title:f.name,mimeType:f.mimeType,fileSize:f.size,fileExtension:f.fileExtension,parentId:(f.parents||[])[0],viewUrl:f.webViewLink,createdTime:f.createdTime,durationMs:f.videoMediaMetadata&&f.videoMediaMetadata.durationMillis?+f.videoMediaMetadata.durationMillis:null})),nextPageToken:j.nextPageToken}};
