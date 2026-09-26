@@ -1,0 +1,2 @@
+# 구글 로그인(Firebase) 도우미를 같은 주소에서 쓰기 위한 설정 — 아이폰 앱 모드 로그인에 필요
+/__/auth/*  https://study-planner-41447.firebaseapp.com/__/auth/:splat  200

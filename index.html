@@ -4,10 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-title" content="하준봇">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EEF1F5">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/firebase-config.js"></script>
 <title>하준봇</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Gowun+Batang:wght@700&display=swap" rel="stylesheet">
 <style>
@@ -210,6 +219,22 @@ table.sv-t{border-collapse:collapse;width:100%;font-size:13px}
 .sv-memos input,.memo-cell input{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--paper);font-size:13px;width:100%}
 .sv-t td.memo-cell{padding:4px 6px;text-align:left}
 .sv-foot{margin-top:30px;font-size:12px;color:var(--ink2);text-align:center}
+.lock{position:fixed;inset:0;z-index:100;background:var(--paper);display:grid;place-items:center;padding:env(safe-area-inset-top,0px) 20px env(safe-area-inset-bottom,0px)}
+.lock[hidden]{display:none}
+.lock-box{width:100%;max-width:300px;text-align:center}
+.lock-title{font-family:"Gowun Batang",Georgia,serif;font-size:30px;margin-bottom:22px}
+.lock-dots{display:flex;justify-content:center;gap:16px;margin-bottom:10px}
+.lock-dots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink);display:block}
+.lock-dots i.on{background:var(--ink)}
+.lock-dots.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+@media (prefers-reduced-motion:reduce){.lock-dots.shake{animation:none}}
+.lock-msg{font-size:13.5px;color:var(--ink2);min-height:20px;margin-bottom:18px}
+.lock-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.lock-pad button{height:64px;border-radius:50%;border:1px solid var(--line);background:var(--sheet);font-size:24px;font-weight:500;aspect-ratio:1;justify-self:center;width:64px}
+.lock-pad button.fn{border:none;background:none;font-size:15px;color:var(--ink2)}
+.hub-foot{max-width:560px;margin:-40px auto 40px;padding:0 18px;font-size:12.5px;color:var(--ink2);text-align:center}
+.linkish{border:none;background:none;color:var(--ink2);text-decoration:underline;font-size:12.5px;cursor:pointer;padding:0}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 footer{font-size:12px;color:var(--ink2);text-align:center;margin-top:30px}
@@ -217,23 +242,21 @@ footer{font-size:12px;color:var(--ink2);text-align:center;margin-top:30px}
 </style>
 </head>
 <body>
-<div id="lockScr" style="position:fixed;inset:0;z-index:9999;background:var(--bg,#f6f4ef);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom)">
-  <div style="font-size:22px;font-weight:700">하준봇</div>
-  <input id="lockPw" type="password" inputmode="numeric" placeholder="비밀번호" style="font:inherit;font-size:18px;padding:10px 14px;border-radius:10px;border:1px solid #ccc;width:180px;text-align:center">
-  <div id="lockMsg" style="font-size:13px;color:#c0392b;min-height:18px"></div>
+<div id="lock" class="lock" role="dialog" aria-modal="true" aria-label="비밀번호 입력">
+  <div class="lock-box">
+    <div class="lock-title">하준봇</div>
+    <div class="lock-dots" id="lockDots" aria-live="polite"><i></i><i></i><i></i><i></i></div>
+    <div class="lock-msg" id="lockMsg">비밀번호 4자리</div>
+    <div class="lock-pad"></div>
+  </div>
 </div>
-<script>
-(function(){
-  const PW="0224", K="hb:unlocked";
-  let ok=false; try{ ok=localStorage.getItem(K)==="1"; }catch(e){}
-  if(ok) return;
-  const s=document.getElementById("lockScr"), i=document.getElementById("lockPw");
-  s.style.display="flex"; setTimeout(()=>i.focus(),50);
-  i.addEventListener("input",()=>{ if(i.value.length<PW.length) return;
-    if(i.value===PW){ try{ localStorage.setItem(K,"1"); }catch(e){} s.remove(); }
-    else { document.getElementById("lockMsg").textContent="비밀번호가 달라요"; i.value=""; } });
-})();
-</script>
+<div id="login" class="lock" hidden style="z-index:99">
+  <div class="lock-box">
+    <div class="lock-title">하준봇</div>
+    <p class="lock-msg" id="loginMsg">구글 계정으로 로그인하면 기록이 모든 기기에 동기화되고, 드라이브 폴더도 확인할 수 있어요.</p>
+    <button class="btn" id="loginBtn" style="width:100%;padding:12px">구글로 로그인</button>
+  </div>
+</div>
 <div id="hubView" class="view">
   <div class="hub">
     <p class="hub-date" id="hubDate"></p>
@@ -243,6 +266,7 @@ footer{font-size:12px;color:var(--ink2);text-align:center;margin-top:30px}
   </div>
 </div>
 
+<div id="hubFoot" class="hub-foot"></div>
 <div id="planView" class="view" hidden>
   <div class="sv">
     <a class="back" href="#">‹ 홈</a>
@@ -294,12 +318,28 @@ footer{font-size:12px;color:var(--ink2);text-align:center;margin-top:30px}
     <div class="card" id="asg"></div>
   </section>
 
-  <footer>블록1(9/21~10/16) 시간표 기준 · <span id="syncState">연결 중…</span>
-    <br><label style="cursor:pointer;text-decoration:underline">백업 가져오기<input type="file" id="importFile" accept=".json" hidden></label></footer>
+  <footer>블록1(9/21~10/16) 시간표 기준 · 기록은 구글 계정에 저장돼요</footer>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
+/* ───────── 잠금 화면 (가벼운 잠금: 링크를 받은 사람의 가벼운 접근만 막아요) ───────── */
+(function(){
+  const HASH="88f772c7fd140ecb87ed466d13f2deca77fa6d0d37771ed9624fe6f02d1b0ac2";
+  const lock=document.getElementById("lock");
+  let ok=false; try{ ok=sessionStorage.getItem("hjbot:unlocked")==="1"; }catch(e){}
+  if(ok){ lock.hidden=true; return; }
+  const pad=lock.querySelector(".lock-pad"), dots=[...document.querySelectorAll("#lockDots i")], msg=document.getElementById("lockMsg");
+  pad.innerHTML=[1,2,3,4,5,6,7,8,9].map(n=>`<button data-k="${n}">${n}</button>`).join("")+`<span></span><button data-k="0">0</button><button class="fn" data-k="del" aria-label="지우기">지우기</button>`;
+  let v="";
+  const paint=()=>dots.forEach((d,i)=>d.classList.toggle("on",i<v.length));
+  async function sha(t){ const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+  async function check(){ if(await sha("hajunbot:"+v)===HASH){ try{ sessionStorage.setItem("hjbot:unlocked","1"); }catch(e){} lock.hidden=true; }
+    else { const box=document.getElementById("lockDots"); box.classList.remove("shake"); void box.offsetWidth; box.classList.add("shake"); msg.textContent="비밀번호가 달라요"; v=""; paint(); } }
+  function press(k){ if(k==="del"){ v=v.slice(0,-1); paint(); return; } if(v.length>=4) return; v+=k; paint(); msg.textContent="비밀번호 4자리"; if(v.length===4) setTimeout(check,120); }
+  pad.addEventListener("click",e=>{ const b=e.target.closest("button"); if(b) press(b.dataset.k); });
+  document.addEventListener("keydown",e=>{ if(lock.hidden) return; if(/^[0-9]$/.test(e.key)) press(e.key); else if(e.key==="Backspace") press("del"); });
+})();
 /* ───────── 시간표 데이터 (2026-2 본2, 블록1) ───────── */
 const SUBJ_FOLDER = {"신장비뇨기학":"신장비뇨기학","혈액종양학":"혈액종양학"};
 const ROOT_FOLDER_ID = "1b7SlGBPfnNE9v78jxGMw7Hm07nLzpBBJ"; // 2026년 본2 2학기 필기스터디
@@ -700,8 +740,8 @@ async function driveSearch(query){
 }
 function drvErr(e){
   const c=e&&e.code;
-  if(c==="needs_reauth") return "구글 드라이브 연결이 만료됐어요. claude.ai 설정 → 커넥터에서 다시 연결해 주세요.";
-  if(c==="server_not_connected") return "구글 드라이브가 연결돼 있지 않아요. claude.ai 설정 → 커넥터에서 추가해 주세요.";
+  if(c==="needs_reauth") return "구글 드라이브 연결이 만료됐어요. 아래 버튼을 누르면 다시 연결돼요.";
+  if(c==="server_not_connected") return "구글 드라이브가 연결돼 있지 않아요. 아래 버튼을 눌러 연결해 주세요.";
   if(c==="not_in_manifest"||c==="consent_required") return "이 페이지에 드라이브 접근이 허용되지 않았어요. 아래 버튼을 눌러 다시 허용해 주세요.";
   if(c==="selection_required") return "연결된 구글 드라이브가 여러 개예요. 뜨는 창에서 하나를 골라 주세요.";
   if(c==="server_unavailable") return "드라이브가 잠시 응답하지 않아요. 조금 뒤 다시 확인해 주세요.";
@@ -719,10 +759,10 @@ async function ensureFolders(){
 function renderDrive(info){
   const sec=$("drvSec"), box=$("drv");
   if(info.off){ sec.style.display="none"; return; } sec.style.display="";
-  if(!mcp){ box.innerHTML=`<p class="muted">드라이브 자동 확인은 Netlify 버전에서는 꺼져 있어요. 녹화 자료는 드라이브 폴더에서 직접 확인해 주세요.</p>`; return; }
+  if(!mcp){ box.innerHTML=`<p class="muted">드라이브 연결은 claude.ai에 게시된 페이지에서 쓸 수 있어요.</p>`; return; }
   const c=drvCache[cur];
   if(c) paintDrive(info);
-  else { box.innerHTML=`<p class="muted" style="margin-top:0">녹화 담당이 ${esc(slashMD(cur))} 폴더에 올린 영상·음원·대본을 확인해요.</p><button class="btn" id="drvGo">드라이브 확인</button>`; $("drvStamp").textContent=""; $("drvGo").onclick=()=>checkDrive(info); }
+  else { box.innerHTML=`<p class="muted" style="margin-top:0">녹화 담당이 ${esc(slashMD(cur))} 폴더에 올린 영상·음원·대본을 확인해요.</p><button class="btn" id="drvGo">드라이브 확인</button>`; $("drvStamp").textContent=""; $("drvGo").onclick=()=>withDrive(()=>checkDrive(info)); }
   if(!c && store.pref("drvok")==="1") checkDrive(info);
 }
 const isVideo=f=>/^video\//.test(f.mimeType||"")||/^(mp4|mov|m4v|mkv|avi|webm)$/i.test(f.fileExtension||"");
@@ -739,9 +779,9 @@ function paintDrive(info){
     const b=files.length?`<span class="badge go">자료 ${files.length}개</span>`:`<span class="badge vote">아직 없음</span>`;
     html+=`<div class="drv-sub"><h3><span>${esc(sub.s)}</span>${b}</h3>`;
     if(vids.length){
-      html+=`<div class="mp3s"><p class="muted" style="margin:0 0 4px;font-size:12.5px">필스할 영상을 체크하면 분담 공지로 바로 넘어가요. 길이는 음원 길이 + 6초로 자동 계산돼요 (칸에서 고칠 수 있어요)</p>`+vids.map(f=>{
+      html+=`<div class="mp3s"><p class="muted" style="margin:0 0 4px;font-size:12.5px">필스할 영상을 체크하면 분담 공지로 바로 넘어가요. 길이는 드라이브의 영상 길이로 채워지고, 없으면 음원 + 6초로 계산돼요 (칸에서 고칠 수 있어요)</p>`+vids.map(f=>{
         const v=st.vids[f.id]||{}; const mp3=files.find(x=>/mp3$/i.test(x.fileExtension||"")&&baseName(x.title)===baseName(f.title)&&x.fileSize);
-        const auto=mp3?Math.round(+mp3.fileSize*8/MP3_KBPS/1000)+VIDEO_EXTRA:null;
+        const auto=f.durationMs?Math.round(f.durationMs/1000):(mp3?Math.round(+mp3.fileSize*8/MP3_KBPS/1000)+VIDEO_EXTRA:null);
         const val=v.len!=null&&v.len!==""?v.len:(auto!=null?hms(auto):"");
         return `<div class="mp3"><input type="checkbox" data-vid="${esc(f.id)}" ${v.on?"checked":""} aria-label="${esc(f.title)} 필스 포함"><span>${esc(f.title)}</span><input class="vlen" data-vlen="${esc(f.id)}" value="${esc(val)}" placeholder="예: 0:40:16" inputmode="numeric" aria-label="${esc(f.title)} 영상 길이"></div>`;
       }).join("")+`<div class="row" style="margin-top:6px"><span>체크한 영상 합계 <b class="vsum"></b></span></div></div>`;
@@ -751,7 +791,7 @@ function paintDrive(info){
     html+=`</div>`;
   }
   box.innerHTML=html+`<div style="margin-top:10px"><button class="btn ghost" id="drvGo">다시 확인</button></div>`;
-  $("drvStamp").textContent=c.at+" 확인"; $("drvGo").onclick=()=>checkDrive(info);
+  $("drvStamp").textContent=c.at+" 확인"; $("drvGo").onclick=()=>withDrive(()=>checkDrive(info));
   vidTotal(false);
 }
 function vidTotal(push){
@@ -788,14 +828,14 @@ async function checkDrive(info){
       const rec=kids.find(f=>f.mimeType==="application/vnd.google-apps.folder" && f.title.includes("영상"));
       const pdfs=kids.filter(f=>(f.fileExtension||"").toLowerCase()==="pdf").length;
       let files=[]; if(rec) files=await driveSearch(`parentId = '${rec.id}'`);
-      subs.push({s,files:files.map(f=>({id:f.id,title:f.title,mimeType:f.mimeType,fileExtension:f.fileExtension,fileSize:f.fileSize})),pdfs});
+      subs.push({s,files:files.map(f=>({id:f.id,title:f.title,mimeType:f.mimeType,fileExtension:f.fileExtension,fileSize:f.fileSize,durationMs:f.durationMs})),pdfs});
     }
     drvCache[day]={subs,at:kstNowHM()}; store.pref("drvok","1");
     if(day===cur){ paintDrive(info); renderAssign(info); }
   }catch(e){
     if(day!==cur) return;
     box.innerHTML=`<p class="muted" style="margin-top:0">${esc(drvErr(e))}</p><button class="btn ghost" id="drvGo">다시 확인</button>`;
-    $("drvGo").onclick=()=>checkDrive(info);
+    $("drvGo").onclick=()=>withDrive(()=>checkDrive(info));
   }
 }
 
@@ -912,12 +952,8 @@ function tableData(){ const R=computeRows(); if(!R) return null;
   const body=R.rows.map(r=>{ const row=[r.n,r.name]; for(let k=0;k<2;k++){ const g=r.segs[k]; row.push(g?g.rec:"",g?g.s:"",g?g.e:"",g?g.file:""); } return {row,segs:r.segs}; });
   return {R,head,body}; }
 async function doSave(filename,data){
-  try{
-    const blob = data instanceof Blob ? data : new Blob([data]);
-    const u=URL.createObjectURL(blob), a=document.createElement("a");
-    a.href=u; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(u),2000);
-  }catch(e){ toast("저장하지 못했어요"); }
+  if(!downloads){ toast("여기서는 저장할 수 없어요. 게시된 페이지에서 눌러 주세요"); return; }
+  try{ await downloads.save({filename,data}); }catch(e){ if(e&&e.code==="declined") return; toast(e&&e.code==="rate_limited"?"잠시 뒤 다시 눌러 주세요":"저장하지 못했어요"); }
 }
 async function savePng(){
   const D=tableData(); if(!D) return; try{ await document.fonts.ready; }catch(e){}
@@ -995,7 +1031,7 @@ let SV_F=null; // {note:[],ex:[],sum:[]} — null이면 드라이브 못 읽음 
 try{ const c=JSON.parse(localStorage.getItem("sv:files")||"null"); if(c) SV_F=c; }catch(e){}
 const kstDateOf=iso=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(iso));
 const svNorm=x=>String(x).replace(/\(.*?\)/g,"").replace(/[\s0-9,.\-_·]/g,"");
-let SV_LOADING=false;
+let SV_LOADING=false, SV_NEEDAUTH=false;
 async function svLoadExams(){
   if(!mcp||SV_LOADING) return; SV_LOADING=true; if((location.hash||"")==="#plan") svDraw();
   try{
@@ -1010,10 +1046,10 @@ async function svLoadExams(){
         await Promise.all(subs.map(async sf=>{ const items=await newIn(sf.id); out=out.concat(onlyFiles(items).map(asFile));
           await Promise.all(items.filter(f=>f.mimeType===FOLDER).map(async inner=>{ out=out.concat(onlyFiles(await newIn(inner.id)).map(asFile)); })); })); }));
       return out; })();
-    const study=await pStudy;
+    const study=await pStudy; SV_NEEDAUTH=false;
     SV_F={study,at:kstNowHM()};
     try{ localStorage.setItem("sv:files",JSON.stringify(SV_F)); }catch(e){}
-  }catch(e){}
+  }catch(e){ if(e&&e.code==="needs_reauth") SV_NEEDAUTH=true; }
   SV_LOADING=false;
 }
 const SV_LINK={s3:"study"}; // 정리스터디만 드라이브로 확인
@@ -1063,7 +1099,7 @@ function svDrawTodo(){
     return Object.values(g).map(x=>`<div class="sv-task${isLate?" late":""}"><button class="st" data-svgroup="${x.l.date}|${x.st.k}" aria-label="${slashMD(x.l.date)} 과정기술 ${x.st.label} 모두 완료">${x.st.n}</button><div class="b"><div class="t">과정기술 ${slashMD(x.l.date)}${x.l.r2?" 2회차":""} ${x.st.label}</div><div class="m">${esc(x.skills.join(" · "))}${isLate?` · ${x.note}`:""}</div>${x.st.memo?svMemoInputs(x.l.date):""}</div></div>`).join(""); };
   const skNext=skOf(next), skLate=skOf(late); next=notSk(next); late=notSk(late);
   const sec=(title,items,empty)=>{ h+=`<h2>${title}<span>${items.length}개</span></h2>`+(items.length?items.map(svTaskHtml).join(""):`<div class="sv-empty">${empty}</div>`); };
-  h=`<p class="muted" style="font-size:12.5px;margin:0 2px 6px">${SV_LOADING?"정리스터디 폴더 확인 중…":SV_F&&SV_F.at?`정리스터디 폴더 ${SV_F.at} 확인`:""}</p>`+h;
+  h=`<p class="muted" style="font-size:12.5px;margin:0 2px 6px">${SV_LOADING?"정리스터디 폴더 확인 중…":SV_NEEDAUTH?`<button class="reset" data-svauth="1" style="margin:0">정리스터디 확인하려면 눌러서 구글 드라이브 연결</button>`:SV_F&&SV_F.at?`정리스터디 폴더 ${SV_F.at} 확인`:""}</p>`+h;
   sec("오늘 수업 1~3",today,L.some(l=>l.date===T&&!l.sk)?"오늘 수업 할 일을 모두 끝냈어요":"오늘은 기말 범위 수업이 없어요");
   sec("다음 날 복습",next,skNext.length?"":"오늘 챙길 복습이 없어요");
   if(skNext.length) h+=groupRows(skNext,false);
@@ -1123,6 +1159,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.svt){ const [key,k]=svSplit(b.dataset.svt); const l=svFind(key); if(!l) return; const r=svRec(l);
     if(r[k]){ delete r[k]; toast("체크를 지웠어요"); } else { r[k]=svStamp(); delete r["w_"+k]; toast(`${slashMD(r[k])} ${(stepsFor(l).find(x=>x.k===k)||{}).label||""} 기록했어요`); }
     svSave(); svDraw(); updateHub(); return; }
+  if(b.dataset.svauth){ withDrive(()=>svLoadExams().then(svDraw)); return; }
   if(b.dataset.svgroup){ const [d,k]=svSplit(b.dataset.svgroup); const ls=svLectures().filter(l=>l.sk&&l.date===d); const allDone=ls.every(l=>(SVP[svKey(l)]||{})[k]);
     ls.forEach(l=>{ const r=svRec(l); if(allDone) delete r[k]; else if(!r[k]) r[k]=svStamp(); }); svSave(); svDraw(); updateHub();
     toast(allDone?"체크를 지웠어요":`${slashMD(svStamp())} ${(SK_STEPS.find(x=>x.k===k)||{}).label} 기록했어요`); return; }
@@ -1141,7 +1178,7 @@ function updateHub(){
 }
 async function route(){
   const h=(location.hash||"").slice(1);
-  $("hubView").hidden = !(h===""||h==="home"); $("planView").hidden = h!=="plan"; $("pilsView").hidden = h!=="pils";
+  $("hubView").hidden = !(h===""||h==="home"); $("hubFoot").hidden=$("hubView").hidden; $("planView").hidden = h!=="plan"; $("pilsView").hidden = h!=="pils";
   if(h==="plan"){ await svLoadOverrides(); svDraw(); svLoadExams().then(()=>{ if((location.hash||"").slice(1)==="plan") svDraw(); }); }
   if(h===""||h==="home") updateHub();
   window.scrollTo(0,0);
@@ -1152,39 +1189,66 @@ window.addEventListener("hashchange",route);
 loadRoster().then(()=>renderAssign(dayInfo(cur)));
 render();
 svLoad().then(async()=>{ await svLoadOverrides(); route(); });
-/* ───────── Firebase (study-planner-41447) ───────── */
-const FB_CONFIG={apiKey:"AIzaSyBp9FB5sP6H1lmoIL4KVckWN6PBbflxBXE",authDomain:"study-planner-41447.firebaseapp.com",projectId:"study-planner-41447",storageBucket:"study-planner-41447.firebasestorage.app",messagingSenderId:"78047747646",appId:"1:78047747646:web:63e8bb32b00b6c80defb6f"};
-const HB="hb_"; // 하준봇 전용 컬렉션 접두어 (hb_days, hb_progress, hb_settings)
-function setSync(t,ok){ const e=$("syncState"); if(e){ e.textContent=t; e.style.color=ok?"":"#c0392b"; } }
-async function initFirebase(){
-  if(!window.firebase) { setSync("오프라인 — 이 기기에만 저장돼요",false); return null; }
-  try{
-    if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
-    const fs=firebase.firestore();
-    await fs.doc(HB+"settings/roster").get(); // 권한 확인
-    setSync("모든 기기에 동기화돼요",true);
-    return { doc:p=>fs.doc(HB+p), collection:c=>fs.collection(HB+c) };
-  }catch(e){
-    console.error(e);
-    setSync(e&&e.code==="permission-denied"?"동기화 안 됨 — Firestore 규칙 확인 필요":"동기화 안 됨 — 이 기기에만 저장돼요",false);
-    return null;
-  }
+/* ───────── Firebase · 구글 드라이브 연결 ───────── */
+const DRIVE_SCOPE="https://www.googleapis.com/auth/drive.metadata.readonly";
+const isStandalone=()=>window.navigator.standalone===true||window.matchMedia("(display-mode: standalone)").matches;
+function tokenGet(){ try{ const t=JSON.parse(localStorage.getItem("hjbot:gtoken")||"null"); if(t&&t.exp>Date.now()) return t.v; }catch(e){} return null; }
+function tokenSave(v){ try{ localStorage.setItem("hjbot:gtoken",JSON.stringify({v,exp:Date.now()+55*60*1000})); }catch(e){} }
+function tokenClear(){ try{ localStorage.removeItem("hjbot:gtoken"); }catch(e){} }
+function googleProvider(){ const p=new firebase.auth.GoogleAuthProvider(); p.addScope(DRIVE_SCOPE); if(firebase.auth().currentUser) p.setCustomParameters({login_hint:firebase.auth().currentUser.email}); return p; }
+async function googleSignIn(){
+  const auth=firebase.auth(), p=googleProvider();
+  if(isStandalone()){ sessionStorage.setItem("hjbot:return",location.hash||""); await auth.signInWithRedirect(p); return null; }
+  try{ const r=await auth.signInWithPopup(p); if(r.credential&&r.credential.accessToken) tokenSave(r.credential.accessToken); return r; }
+  catch(e){ if(e&&/popup/.test(e.code||"")){ sessionStorage.setItem("hjbot:return",location.hash||""); await auth.signInWithRedirect(p); return null; } throw e; }
 }
-async function importBackup(file){
-  if(!db){ toast("동기화가 연결돼야 가져올 수 있어요"); return; }
-  try{
-    const data=JSON.parse(await file.text()); let n=0;
-    for(const [path,doc] of Object.entries(data)){ if(!/^(days|progress|settings)\/[^/]+$/.test(path)) continue; await db.doc(path).set(doc); n++; }
-    toast(`백업 ${n}개 가져왔어요`); setTimeout(()=>location.reload(),900);
-  }catch(e){ console.error(e); toast("백업 파일을 읽지 못했어요"); }
-}
-document.addEventListener("change",e=>{ if(e.target&&e.target.id==="importFile"&&e.target.files[0]) importBackup(e.target.files[0]); });
+async function withDrive(fn){ if(!tokenGet()){ try{ await googleSignIn(); }catch(e){ toast("구글 연결을 취소했어요"); return; } if(!tokenGet()) return; } return fn(); }
+const driveAdapter={ async callTool(_s,_t,input){
+  const tok=tokenGet(); if(!tok) throw {code:"needs_reauth"};
+  let q=input.query.replace(/parentId = '([^']+)'/g,"'$1' in parents").replace(/\btitle (=|contains) /g,"name $1 ")+" and trashed = false";
+  const ps=new URLSearchParams({q,pageSize:"200",includeItemsFromAllDrives:"true",supportsAllDrives:"true",fields:"nextPageToken,files(id,name,mimeType,size,fileExtension,parents,webViewLink,createdTime,videoMediaMetadata)"});
+  if(input.pageToken) ps.set("pageToken",input.pageToken);
+  const r=await fetch("https://www.googleapis.com/drive/v3/files?"+ps,{headers:{Authorization:"Bearer "+tok}});
+  if(r.status===401){ tokenClear(); throw {code:"needs_reauth"}; }
+  if(r.status===403) throw {code:"not_in_manifest"};
+  if(!r.ok) throw {code:"server_unavailable"};
+  const j=await r.json();
+  return {payload:{files:(j.files||[]).map(f=>({id:f.id,title:f.name,mimeType:f.mimeType,fileSize:f.size,fileExtension:f.fileExtension,parentId:(f.parents||[])[0],viewUrl:f.webViewLink,createdTime:f.createdTime,durationMs:f.videoMediaMetadata&&f.videoMediaMetadata.durationMillis?+f.videoMediaMetadata.durationMillis:null})),nextPageToken:j.nextPageToken}};
+}};
+const downloadAdapter={ async save({filename,data}){
+  const blob=data instanceof Blob?data:new Blob([data],{type:/\.xlsx$/.test(filename)?"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":"application/octet-stream"});
+  const file=new File([blob],filename,{type:blob.type});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file]}); return; }catch(e){ if(e&&e.name==="AbortError") return; } }
+  const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+}};
+
+/* 기존 claude.ai 기록 가져오기 · 로그아웃 */
+function drawHubFoot(){ const u=firebase.auth().currentUser; $("hubFoot").innerHTML=u?`<span>${esc(u.email||"")}</span> · <label class="linkish">기존 기록 가져오기<input type="file" id="importFile" accept="application/json" hidden></label> · <button class="linkish" id="logoutBtn">로그아웃</button>`:"";
+  const f=$("importFile"); if(f) f.onchange=async e=>{ const file=e.target.files[0]; if(!file) return; try{ const d=JSON.parse(await file.text()); let n=0;
+      for(const [id,v] of Object.entries(d.days||{})){ await db.doc("days/"+id).set(v); n++; }
+      for(const [id,v] of Object.entries(d.progress||{})){ await db.doc("progress/"+id).set(v); n++; }
+      for(const [id,v] of Object.entries(d.settings||{})){ await db.doc("settings/"+id).set(v); n++; }
+      toast(`${n}개 기록을 가져왔어요`); setTimeout(()=>location.reload(),900); }catch(err){ toast("가져오지 못했어요. 파일을 확인해 주세요"); } };
+  const lo=$("logoutBtn"); if(lo) lo.onclick=async()=>{ tokenClear(); await firebase.auth().signOut(); location.reload(); }; }
+
 (async()=>{
-  db=await initFirebase(); await loadRoster();
-  if(mcp) svLoadExams().then(()=>{ const h=(location.hash||"").slice(1); if(h==="plan") svDraw(); if(h===""||h==="home") updateHub(); });
-  if(db){ const local=JSON.stringify(SVP); await svLoad(); if(!Object.keys(SVP).length&&local!=="{}"){ SVP=JSON.parse(local); svSave(); } await svLoadOverrides(); route(); }
-  if(db){ if(pending) await store.set(loadedFor,pending); pending=null; loadedFor=null; }
-  if(db||mcp) render();
+  if(!window.FIREBASE_CONFIG){ document.body.innerHTML="<p style='padding:24px'>firebase-config.js가 없어요.</p>"; return; }
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  const auth=firebase.auth(), fs=firebase.firestore();
+  try{ await fs.enablePersistence({synchronizeTabs:true}); }catch(e){}
+  try{ const r=await auth.getRedirectResult(); if(r&&r.credential&&r.credential.accessToken){ tokenSave(r.credential.accessToken); const back=sessionStorage.getItem("hjbot:return"); if(back){ sessionStorage.removeItem("hjbot:return"); location.hash=back; } } }catch(e){ console.warn(e); }
+  $("loginBtn").onclick=async()=>{ try{ await googleSignIn(); }catch(e){ $("loginMsg").textContent="로그인하지 못했어요. 다시 눌러 주세요."; } };
+  auth.onAuthStateChanged(async u=>{
+    $("login").hidden=!!u; if(!u) return;
+    const base=`users/${u.uid}/`;
+    db={doc:p=>fs.doc(base+p), collection:p=>fs.collection(base+p)};
+    mcp=driveAdapter; downloads=downloadAdapter;
+    drawHubFoot(); await loadRoster();
+    const local=JSON.stringify(SVP); await svLoad(); if(!Object.keys(SVP).length&&local!=="{}"){ SVP=JSON.parse(local); svSave(); }
+    loadedFor=null; st=null; await svLoadOverrides(); route(); render();
+    if(tokenGet()) svLoadExams().then(()=>{ const h=(location.hash||"").slice(1); if(h==="plan") svDraw(); });
+    else { SV_NEEDAUTH=true; if((location.hash||"")==="#plan") svDraw(); }
+  });
 })();
 </script>
 </body>
